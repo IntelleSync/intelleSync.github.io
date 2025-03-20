@@ -214,7 +214,7 @@ export const PrivacyPolicyExtension = {
     // Create policy text
     const policyText = document.createElement('div');
     policyText.className = 'policy-text';
-    policyText.innerHTML = `JoJo is an AI assistant designed to help you find information about our website, registrations, and general inquiries. JoJo utilizes commercially available third-party large language models (LLMs) and is part of your customer service team but does not provide tax advice or professional guidanceâ€”tax-related questions should be directed to a licensed tax professional.<br/><br/>For your protection, please do not share private information. Clicking 'Accept' enables this assistant feature and confirms your understanding and agreement that use of this feature is subject to the <a href="https://www.cpehours.com/privacy-policy/" target="_blank">Basics & Beyond Privacy Policy</a>`;
+    policyText.innerHTML = `JoJo is an AI assistant designed to help you find information about our website, registrations, and general inquiries. JoJo utilizes commercially available third-party large language models (LLMs) and is part of your customer service team but does not provide tax advice or professional-guidance tax-related questions should be directed to a licensed tax professional.<br/><br/>For your protection, please do not share private information. Clicking 'Accept' enables this assistant feature and confirms your understanding and agreement that use of this feature is subject to the <a href="https://www.cpehours.com/privacy-policy/" target="_blank">Basics & Beyond Privacy Policy</a>`;
     
     // Create button container
     const buttonContainer = document.createElement('div');
