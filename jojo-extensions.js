@@ -1915,6 +1915,79 @@ export const FormExtension = {
         .designation-group {
           margin-top: 10px;
         }
+        /* Styles for the confirmation popup */
+        .confirmation-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.5);
+          z-index: 1000;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        .confirmation-popup {
+          background: white;
+          padding: 25px;
+          border-radius: 8px;
+          max-width: 80%;
+          max-height: 80%;
+          overflow-y: auto;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .confirmation-title {
+          font-size: 20px;
+          font-weight: bold;
+          margin-bottom: 15px;
+          color: #333;
+        }
+        .attendee-summary {
+          margin-bottom: 15px;
+          padding: 15px;
+          border: 1px solid #eee;
+          border-radius: 4px;
+          background-color: #f9f9f9;
+        }
+        .confirmation-buttons {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 20px;
+        }
+        .edit-btn {
+          background: #f0f0f0;
+          color: #333;
+          border: 1px solid #ccc;
+          padding: 10px 20px;
+          cursor: pointer;
+          border-radius: 4px;
+          font-size: 16px;
+          flex: 1;
+          margin-right: 10px;
+        }
+        .edit-btn:hover {
+          background: #e0e0e0;
+        }
+        .confirm-btn {
+          background: #398CC4;
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          cursor: pointer;
+          border-radius: 4px;
+          font-size: 16px;
+          flex: 1;
+          margin-left: 10px;
+        }
+        .confirm-btn:hover {
+          background: #2E719E;
+        }
+        .info-label {
+          font-weight: bold;
+          display: inline-block;
+          width: 110px;
+        }
       </style>
     `
 
@@ -2027,6 +2100,115 @@ export const FormExtension = {
 
     formContainer.appendChild(formWrapper)
 
+    // Create confirmation popup function
+    function createConfirmationPopup(attendeesData) {
+      const overlay = document.createElement('div')
+      overlay.className = 'confirmation-overlay'
+      
+      const popup = document.createElement('div')
+      popup.className = 'confirmation-popup'
+      
+      // Add title
+      const title = document.createElement('div')
+      title.className = 'confirmation-title'
+      title.textContent = 'Please Confirm Your Information'
+      popup.appendChild(title)
+      
+      // Add attendee information
+      attendeesData.forEach((attendee, index) => {
+        const attendeeDiv = document.createElement('div')
+        attendeeDiv.className = 'attendee-summary'
+        
+        const attendeeTitle = document.createElement('h3')
+        attendeeTitle.textContent = `Attendee ${index + 1}: ${attendee.name}`
+        attendeeDiv.appendChild(attendeeTitle)
+        
+        // Email
+        const emailDiv = document.createElement('div')
+        emailDiv.innerHTML = `<span class="info-label">Email:</span> ${attendee.email}`
+        attendeeDiv.appendChild(emailDiv)
+        
+        // PTIN
+        const ptinDiv = document.createElement('div')
+        ptinDiv.innerHTML = `<span class="info-label">PTIN:</span> ${attendee.ptin}`
+        attendeeDiv.appendChild(ptinDiv)
+        
+        // Fall Date
+        const fallDateDiv = document.createElement('div')
+        fallDateDiv.innerHTML = `<span class="info-label">Fall Date:</span> ${attendee.falldate}`
+        attendeeDiv.appendChild(fallDateDiv)
+        
+        // Year End Date
+        const yearEndDateDiv = document.createElement('div')
+        yearEndDateDiv.innerHTML = `<span class="info-label">Year End Date:</span> ${attendee.yearenddate}`
+        attendeeDiv.appendChild(yearEndDateDiv)
+        
+        // Designations
+        const designationsDiv = document.createElement('div')
+        designationsDiv.innerHTML = `<span class="info-label">Designations:</span> ${attendee.designations.length > 0 ? attendee.designations.join(', ') : 'None'}`
+        attendeeDiv.appendChild(designationsDiv)
+        
+        popup.appendChild(attendeeDiv)
+      })
+      
+      // Add confirmation question
+      const question = document.createElement('div')
+      question.style.fontWeight = 'bold'
+      question.style.margin = '20px 0 10px'
+      question.textContent = 'Is the information all correct?'
+      popup.appendChild(question)
+      
+      // Add buttons container
+      const buttonsDiv = document.createElement('div')
+      buttonsDiv.className = 'confirmation-buttons'
+      
+      // Edit button
+      const editBtn = document.createElement('button')
+      editBtn.className = 'edit-btn'
+      editBtn.textContent = 'Edit'
+      editBtn.addEventListener('click', () => {
+        overlay.remove()
+      })
+      buttonsDiv.appendChild(editBtn)
+      
+      // Submit button
+      const confirmBtn = document.createElement('button')
+      confirmBtn.className = 'confirm-btn'
+      confirmBtn.textContent = 'Submit'
+      confirmBtn.addEventListener('click', () => {
+        // Send to Voiceflow as a payload
+        window.voiceflow.chat.interact({
+          type: 'complete',
+          payload: { attendees: attendeesData },
+        })
+        
+        // Disable all fields & buttons after submit
+        const allAttendeeBlocks = attendeesContainer.querySelectorAll('.attendee')
+        allAttendeeBlocks.forEach((attendeeDiv) => {
+          attendeeDiv.querySelectorAll('input, select').forEach((el) => {
+            el.disabled = true
+          })
+        })
+        addAttendeeBtn.disabled = true
+        submitBtn.disabled = true
+        
+        // Also disable each remove button
+        const removeButtons = attendeesContainer.querySelectorAll('.remove-attendee-btn')
+        removeButtons.forEach((btn) => {
+          btn.disabled = true
+        })
+        
+        // Remove the confirmation popup
+        overlay.remove()
+      })
+      buttonsDiv.appendChild(confirmBtn)
+      
+      popup.appendChild(buttonsDiv)
+      overlay.appendChild(popup)
+      
+      return overlay
+    }
+
     // ==========================
     // Handle form submission
     // ==========================
@@ -2103,29 +2285,9 @@ export const FormExtension = {
       // If anything invalid, stop here
       if (!valid) return
 
-      // At this point, we have all the valid attendees in attendeesData
-      // Send to Voiceflow as a payload
-      window.voiceflow.chat.interact({
-        type: 'complete',
-        payload: { attendees: attendeesData },
-      })
-
-      // ==========================
-      // Disable all fields & buttons after submit
-      // ==========================
-      allAttendeeBlocks.forEach((attendeeDiv) => {
-        attendeeDiv.querySelectorAll('input, select').forEach((el) => {
-          el.disabled = true
-        })
-      })
-      addAttendeeBtn.disabled = true
-      submitBtn.disabled = true
-
-      // Also disable each remove button
-      const removeButtons = attendeesContainer.querySelectorAll('.remove-attendee-btn')
-      removeButtons.forEach((btn) => {
-        btn.disabled = true
-      })
+      // Instead of submitting directly, show the confirmation popup
+      const confirmationPopup = createConfirmationPopup(attendeesData)
+      document.body.appendChild(confirmationPopup)
     })
 
     element.appendChild(formContainer)
