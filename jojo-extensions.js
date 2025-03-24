@@ -1917,11 +1917,11 @@ export const FormExtension = {
         }
         /* Styles for the confirmation popup */
         .confirmation-overlay {
-          position: fixed;
+          position: absolute;
           top: 0;
           left: 0;
-          right: 0;
-          bottom: 0;
+          width: 100%;
+          height: 100%;
           background-color: rgba(0, 0, 0, 0.5);
           z-index: 1000;
           display: flex;
@@ -1994,6 +1994,8 @@ export const FormExtension = {
     // Create a wrapper for better layout
     const formWrapper = document.createElement('div')
     formWrapper.className = 'form-container'
+    // Make sure the form wrapper has a position context for the absolute popup
+    formWrapper.style.position = 'relative'
 
     const attendeesContainer = document.createElement('div')
     attendeesContainer.className = 'attendees-container'
@@ -2287,7 +2289,7 @@ export const FormExtension = {
 
       // Instead of submitting directly, show the confirmation popup
       const confirmationPopup = createConfirmationPopup(attendeesData)
-      document.body.appendChild(confirmationPopup)
+      formWrapper.appendChild(confirmationPopup)
     })
 
     element.appendChild(formContainer)
