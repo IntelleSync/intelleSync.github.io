@@ -1926,16 +1926,18 @@ export const FormExtension = {
           z-index: 1000;
           display: flex;
           justify-content: center;
-          align-items: center;
+          align-items: flex-end;
+          padding-bottom: 20px;
         }
         .confirmation-popup {
           background: white;
           padding: 25px;
           border-radius: 8px;
-          max-width: 80%;
-          max-height: 80%;
+          max-width: 90%;
+          max-height: 70%;
           overflow-y: auto;
           box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+          margin-bottom: 20px;
         }
         .confirmation-title {
           font-size: 20px;
@@ -2157,7 +2159,7 @@ export const FormExtension = {
       const question = document.createElement('div')
       question.style.fontWeight = 'bold'
       question.style.margin = '20px 0 10px'
-      question.textContent = 'Is all the information correct?'
+      question.textContent = 'Is the information all correct?'
       popup.appendChild(question)
       
       // Add buttons container
