@@ -2157,7 +2157,7 @@ export const FormExtension = {
       const question = document.createElement('div')
       question.style.fontWeight = 'bold'
       question.style.margin = '20px 0 10px'
-      question.textContent = 'Is the information all correct?'
+      question.textContent = 'Is all the information correct?'
       popup.appendChild(question)
       
       // Add buttons container
