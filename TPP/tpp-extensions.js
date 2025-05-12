@@ -1,75 +1,65 @@
 // progress-bar-extension.js
-// Voiceflow Web Chat extension: show / hide a thin animated progress bar
-// Triggered by a Custom Action trace whose `type` === "progress-bar"
-// and whose payload looks like { "state": "show" }  or { "state": "hide" }
+// Show/hide an animated loader **inside** the Voiceflow chat widget.
 
 export const ProgressBar = {
-  /** Unique key that Voiceflow uses to map this extension */
   name: 'progress-bar',
-
-  /** “effect” runs outside the transcript, ideal for loaders */
-  type: 'effect',
-
-  /**
-   * Run on every trace; return true when you want to handle it.
-   * We only care about traces whose `type` is exactly "progress-bar".
-   */
+  type: 'effect',                                    // <— runs outside transcript
   match: ({ trace }) => trace.type === 'progress-bar',
 
-  /**
-   * Imperatively add or remove the bar.
-   * Called once for every matching trace.
-   */
   effect: ({ trace }) => {
-    // payload.state should be "show" or "hide" (anything else → ignore)
-    const state = trace.payload?.state ?? 'show';
-
-    // CSS class & element id to keep things tidy
+    const state = trace.payload?.state ?? 'show';    // show | hide
     const BAR_ID   = 'vf-progress-bar';
     const STYLE_ID = 'vf-progress-bar-style';
 
-    // ----- show -----
+    /* 1 ▸ find the chat container (overlay or embedded) */
+    const chatHost =
+      document.querySelector('.vfrc-chat') ||        // overlay
+      document.getElementById('voiceflow-chat-frame'); // embedded
+
+    if (!chatHost) return;                           // chat not open yet
+
+    /* 2 ▸ inject / remove */
     if (state === 'show') {
-      // Inject the style tag only once
+      // add CSS once
       if (!document.getElementById(STYLE_ID)) {
-        const style       = document.createElement('style');
-        style.id          = STYLE_ID;
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
         style.textContent = `
           #${BAR_ID} {
-            position: fixed;
+            position: absolute;      /* relative to chat container */
             top: 0;
             left: 0;
             width: 100%;
             height: 4px;
-            z-index: 2147483647; /* on top of everything */
             background:
-              linear-gradient(#474bff 0 0) 0/40% 100% no-repeat,
+              linear-gradient(#474bff 0 0) 0/45% 100% no-repeat,
               #dbdcef;
-            animation: vf-loader-slide 2.4s infinite;
+            animation: vf-slide 2.4s infinite;
+            border-radius: 2px 2px 0 0;
+            pointer-events: none;    /* ignore clicks */
           }
-          @keyframes vf-loader-slide {
+          @keyframes vf-slide {
             0%   { background-position: -100% 0; }
             50%  { background-position: 200% 0; }
             100% { background-position: 200% 0; }
-          }
-        `;
+          }`;
         document.head.appendChild(style);
       }
 
-      // Only add the bar if it doesn’t already exist
-      if (!document.getElementById(BAR_ID)) {
+      // add bar if missing
+      if (!chatHost.querySelector(`#${BAR_ID}`)) {
+        /* make sure host is positioning context */
+        chatHost.style.position ||= 'relative';
+
         const bar = document.createElement('div');
         bar.id = BAR_ID;
-        document.body.appendChild(bar);
+        chatHost.appendChild(bar);
       }
-      return; // done
     }
 
-    // ----- hide -----
     if (state === 'hide') {
-      document.getElementById(BAR_ID)?.remove();
-      // Optional: also remove the <style> tag when the bar is gone
-      if (!document.getElementById(BAR_ID)) {
+      chatHost.querySelector(`#${BAR_ID}`)?.remove();
+      if (!chatHost.querySelector(`#${BAR_ID}`)) {
         document.getElementById(STYLE_ID)?.remove();
       }
     }
