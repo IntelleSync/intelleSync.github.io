@@ -1,32 +1,35 @@
 // progress-bar-extension.js
-// Show/hide an animated loader **inside** the Voiceflow chat widget.
+// Voiceflow Web-Chat extension ─ shows/hides an animated loader INSIDE the chat.
 
 export const ProgressBar = {
   name: 'progress-bar',
-  type: 'effect',                                    // <— runs outside transcript
+  type: 'effect',                              // run outside the transcript
   match: ({ trace }) => trace.type === 'progress-bar',
 
   effect: ({ trace }) => {
-    const state = trace.payload?.state ?? 'show';    // show | hide
-    const BAR_ID   = 'vf-progress-bar';
-    const STYLE_ID = 'vf-progress-bar-style';
+    const state     = trace.payload?.state ?? 'show';   // "show" | "hide"
+    const BAR_ID    = 'vf-progress-bar';
+    const STYLE_ID  = 'vf-progress-bar-style';
 
-    /* 1 ▸ find the chat container (overlay or embedded) */
-    const chatHost =
-      document.querySelector('.vfrc-chat') ||        // overlay
-      document.getElementById('voiceflow-chat-frame'); // embedded
+    /* 1 ▸ find the widget host */
+    const host = document.getElementById('voiceflow-chat');   // root <div>
+    if (!host || !host.shadowRoot) return;                    // widget not open yet
 
-    if (!chatHost) return;                           // chat not open yet
+    /* 2 ▸ find the internal chat surface */
+    const chatSurface =
+      host.shadowRoot.querySelector('.vfrc-widget--chat') || // overlay + widget
+      host.shadowRoot.querySelector('.vfrc-chat');            // embed fallback
+    if (!chatSurface) return;
 
-    /* 2 ▸ inject / remove */
+    /* 3 ▸ SHOW loader ----------------------------------------------------- */
     if (state === 'show') {
-      // add CSS once
-      if (!document.getElementById(STYLE_ID)) {
+      /* inject style once */
+      if (!host.shadowRoot.getElementById(STYLE_ID)) {
         const style = document.createElement('style');
         style.id = STYLE_ID;
         style.textContent = `
           #${BAR_ID} {
-            position: absolute;      /* relative to chat container */
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
@@ -36,31 +39,33 @@ export const ProgressBar = {
               #dbdcef;
             animation: vf-slide 2.4s infinite;
             border-radius: 2px 2px 0 0;
-            pointer-events: none;    /* ignore clicks */
+            pointer-events: none;
           }
           @keyframes vf-slide {
             0%   { background-position: -100% 0; }
             50%  { background-position: 200% 0; }
             100% { background-position: 200% 0; }
           }`;
-        document.head.appendChild(style);
+        host.shadowRoot.appendChild(style);
       }
 
-      // add bar if missing
-      if (!chatHost.querySelector(`#${BAR_ID}`)) {
-        /* make sure host is positioning context */
-        chatHost.style.position ||= 'relative';
+      /* ensure chat surface can anchor absolutely-positioned children */
+      chatSurface.style.position ||= 'relative';
 
+      /* add bar if it isn’t there yet */
+      if (!chatSurface.querySelector('#' + BAR_ID)) {
         const bar = document.createElement('div');
         bar.id = BAR_ID;
-        chatHost.appendChild(bar);
+        chatSurface.appendChild(bar);
       }
+      return;
     }
 
+    /* 4 ▸ HIDE loader ----------------------------------------------------- */
     if (state === 'hide') {
-      chatHost.querySelector(`#${BAR_ID}`)?.remove();
-      if (!chatHost.querySelector(`#${BAR_ID}`)) {
-        document.getElementById(STYLE_ID)?.remove();
+      chatSurface.querySelector('#' + BAR_ID)?.remove();
+      if (!chatSurface.querySelector('#' + BAR_ID)) {
+        host.shadowRoot.getElementById(STYLE_ID)?.remove();
       }
     }
   },
