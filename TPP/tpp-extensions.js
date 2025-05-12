@@ -1,4 +1,4 @@
-export const progress-bar = {
+export const ProgressBar = {
   name: 'progress-bar',
   type: 'response',
   match: ({ trace }) =>
