@@ -1,3 +1,5 @@
+window.vf_done = false
+
 export const ProgressBar = {
   name: 'progress-bar',
   type: 'response',
