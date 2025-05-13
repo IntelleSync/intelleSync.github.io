@@ -50,3 +50,128 @@ export const ProgressBar = {
     element.appendChild(bar);
   },
 }
+
+export const RegistrationVerifiedExtension = {
+  name: 'RegistrationVerified',
+  type: 'response',
+  match: ({ trace }) =>
+    trace.type === 'ext_registrationVerified' ||
+    trace.payload?.name === 'ext_registrationVerified',
+  render: async ({ trace, element }) => {
+    // Small delay (optional)
+    window.vf_done = true
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    
+    // Get custom text or use default
+    const text = trace.payload?.text || 'Registration Verified!'
+    const delay = trace.payload?.delay || 5000
+    
+    const verifiedContainer = document.createElement('div')
+    verifiedContainer.innerHTML = `
+      <style>
+        .vfrc-message--extension-RegistrationVerified {
+          background-color: transparent !important;
+          background: none !important;
+        }
+        
+        .verified-animation-container {
+          font-family: Montserrat, Poppins, sans-serif;
+          font-size: 14px;
+          font-weight: 400;
+          color: #333;
+          display: flex;
+          flex-direction: row;
+          align-items: left;
+          justify-content: flex-start;
+        }
+        
+        .verified-text {
+          margin-left: 20px;
+          opacity: 0;
+          transition: opacity 0.5s ease-in;
+        }
+        
+        .verified-text.show {
+          opacity: 1;
+        }
+        
+        /* Checkmark animation CSS */
+        .checkmark__circle {
+          stroke-dasharray: 166;
+          stroke-dashoffset: 166;
+          stroke-width: 2;
+          stroke-miterlimit: 10;
+          stroke: #7ac142;
+          fill: none;
+          animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+        }
+        
+        .checkmark {
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          display: block;
+          stroke-width: 2;
+          stroke: #fff;
+          stroke-miterlimit: 10;
+          margin: 0 auto;
+          box-shadow: inset 0px 0px 0px #7ac142;
+          animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+        }
+        
+        .checkmark__check {
+          transform-origin: 50% 50%;
+          stroke-dasharray: 48;
+          stroke-dashoffset: 48;
+          animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+        }
+        
+        @keyframes stroke {
+          100% {
+            stroke-dashoffset: 0;
+          }
+        }
+        
+        @keyframes scale {
+          0%, 100% {
+            transform: none;
+          }
+          50% {
+            transform: scale3d(1.1, 1.1, 1);
+          }
+        }
+        
+        @keyframes fill {
+          100% {
+            box-shadow: inset 0px 0px 0px 30px #7ac142;
+          }
+        }
+      </style>
+      <div class="verified-animation-container">
+        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+          <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+        <div class="verified-text">${text}</div>
+      </div>
+    `
+    
+    element.appendChild(verifiedContainer)
+    
+    // Show text after the checkmark animation completes
+    setTimeout(() => {
+      const textElement = verifiedContainer.querySelector('.verified-text')
+      textElement.classList.add('show')
+      
+      // Wait for text fade-in to complete (500ms) before continuing
+      setTimeout(() => {
+        window.voiceflow.chat.interact({
+          type: 'continue',
+        })
+      }, 600)
+    }, 1200) // Timing set to show after checkmark animation finishes
+    
+    // Continue the conversation flow without removing the animation
+    window.vf_done = false
+  },
+}
