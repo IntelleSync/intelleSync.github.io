@@ -1,72 +1,59 @@
-// progress-bar-extension.js
-// Voiceflow Web-Chat extension ─ shows/hides an animated loader INSIDE the chat.
+/* ------------------------------------------------------------------
+   Progress-bar extensions (show + hide)
+   — No changes to size, animation, or position —
+   ------------------------------------------------------------------*/
 
-export const ProgressBar = {
-  name: 'progress-bar',
-  type: 'effect',                              // run outside the transcript
-  match: ({ trace }) => trace.type === 'progress-bar',
+/* 1️⃣  Show the bar */
+export const ProgressBarShow = {
+  name: 'progress-bar-show',
+  type: 'response',
 
-  effect: ({ trace }) => {
-    const state     = trace.payload?.state ?? 'show';   // "show" | "hide"
-    const BAR_ID    = 'vf-progress-bar';
-    const STYLE_ID  = 'vf-progress-bar-style';
+  match: ({ trace }) => trace.type === 'progress-bar-show',
 
-    /* 1 ▸ find the widget host */
-    const host = document.getElementById('voiceflow-chat');   // root <div>
-    if (!host || !host.shadowRoot) return;                    // widget not open yet
+  render: ({ element }) => {
+    /* inject the CSS once (re-uses your original rules) */
+    if (!document.getElementById('vf-progress-style')) {
+      const style = document.createElement('style');
+      style.id = 'vf-progress-style';
+      style.textContent = `
+        .progress {
+          height: 4.5px;
+          width: 145.6px;
+          background: linear-gradient(#474bff 0 0),
+                      linear-gradient(#474bff 0 0),
+                      #dbdcef;
+          background-size: 60% 100%;
+          background-repeat: no-repeat;
+          animation: progress-7x9cg2 3s infinite;
+        }
 
-    /* 2 ▸ find the internal chat surface */
-    const chatSurface =
-      host.shadowRoot.querySelector('.vfrc-widget--chat') || // overlay + widget
-      host.shadowRoot.querySelector('.vfrc-chat');            // embed fallback
-    if (!chatSurface) return;
-
-    /* 3 ▸ SHOW loader ----------------------------------------------------- */
-    if (state === 'show') {
-      /* inject style once */
-      if (!host.shadowRoot.getElementById(STYLE_ID)) {
-        const style = document.createElement('style');
-        style.id = STYLE_ID;
-        style.textContent = `
-          #${BAR_ID} {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background:
-              linear-gradient(#474bff 0 0) 0/45% 100% no-repeat,
-              #dbdcef;
-            animation: vf-slide 2.4s infinite;
-            border-radius: 2px 2px 0 0;
-            pointer-events: none;
-          }
-          @keyframes vf-slide {
-            0%   { background-position: -100% 0; }
-            50%  { background-position: 200% 0; }
-            100% { background-position: 200% 0; }
-          }`;
-        host.shadowRoot.appendChild(style);
-      }
-
-      /* ensure chat surface can anchor absolutely-positioned children */
-      chatSurface.style.position ||= 'relative';
-
-      /* add bar if it isn’t there yet */
-      if (!chatSurface.querySelector('#' + BAR_ID)) {
-        const bar = document.createElement('div');
-        bar.id = BAR_ID;
-        chatSurface.appendChild(bar);
-      }
-      return;
+        @keyframes progress-7x9cg2 {
+          0%   { background-position: -150% 0, -150% 0; }
+          66%  { background-position:  250% 0, -150% 0; }
+          100% { background-position:  250% 0,  250% 0; }
+        }
+      `;
+      document.head.appendChild(style);
     }
 
-    /* 4 ▸ HIDE loader ----------------------------------------------------- */
-    if (state === 'hide') {
-      chatSurface.querySelector('#' + BAR_ID)?.remove();
-      if (!chatSurface.querySelector('#' + BAR_ID)) {
-        host.shadowRoot.getElementById(STYLE_ID)?.remove();
-      }
-    }
+    /* create + attach the bar */
+    const bar = document.createElement('div');
+    bar.className = 'progress';
+    element.appendChild(bar);
+
+    /* return clean-up so the bar disappears when the bubble is removed */
+    return () => bar.remove();
+  },
+};
+
+/* 2️⃣  Hide the bar (renders nothing) */
+export const ProgressBarHide = {
+  name: 'progress-bar-hide',
+  type: 'response',
+
+  match: ({ trace }) => trace.type === 'progress-bar-hide',
+
+  render: () => {
+    /* deliberately empty – this bubble stays invisible */
   },
 };
