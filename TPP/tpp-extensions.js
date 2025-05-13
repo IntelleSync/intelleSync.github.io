@@ -7,7 +7,7 @@ export const ProgressBar = {
     (trace.payload?.state === 'show' || trace.payload?.state === 'hide'),
 
   effect: ({ trace }) => {
-    /* inject CSS once */
+    /* 1 – inject CSS once */
     if (!document.getElementById('vf-progress-style')) {
       const style = document.createElement('style');
       style.id = 'vf-progress-style';
@@ -26,13 +26,16 @@ export const ProgressBar = {
       document.head.appendChild(style);
     }
 
+    /* 2 – show / hide */
     if (trace.payload.state === 'show') {
       if (!document.getElementById('vf-progress-bar')) {
         const bar = document.createElement('div');
         bar.id = 'vf-progress-bar';
         bar.className = 'vf-progress';
-        /* append to chat root */
-        document.querySelector('#voiceflow-chat-frame')?.appendChild(bar);
+
+        /* append to an element that’s guaranteed to exist */
+        (document.querySelector('.vfrc-widget') || document.body)
+          .appendChild(bar);
       }
     } else {
       document.getElementById('vf-progress-bar')?.remove();
