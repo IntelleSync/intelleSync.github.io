@@ -2837,7 +2837,7 @@ export const DownloadButtonExtension = {
   name: 'DownloadButton',
   type: 'response',
   match: ({ trace }) =>
-    trace.type === 'ext_download_button' || trace.payload.name === 'ext_download_button',
+    trace.type === 'ext_download_button' || trace.payload?.name === 'ext_download_button',
   render: ({ trace, element }) => {
     console.log('Rendering Download Button Extension', trace)
 
