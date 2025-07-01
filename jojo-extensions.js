@@ -2832,3 +2832,42 @@ export const DoneAnimationExtension = {
     })
   },
 }
+
+export const DownloadButtonExtension = {
+  name: 'DownloadButton',
+  type: 'response',
+  match: ({ trace }) =>
+    trace.type === 'ext_download_button' || trace.payload.name === 'ext_download_button',
+  render: ({ trace, element }) => {
+    console.log('Rendering Download Button Extension', trace)
+
+    const buttonContainer = document.createElement('div')
+
+    buttonContainer.innerHTML = `
+      <style>
+        .download-button {
+          display: inline-flex;
+          align-items: center;
+          background: linear-gradient(to right, #1e90ff, #00bfff);
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          font-size: 16px;
+          cursor: pointer;
+          text-decoration: none;
+        }
+        .download-icon {
+          margin-right: 10px;
+          font-size: 20px;
+        }
+      </style>
+
+      <a class="download-button" target="_blank" href="https://drive.google.com/uc?export=download&id=1ARh23VueJHMmXjzZ0UkC5JnHJjp2Ye35">
+        <span class="download-icon">⬇️</span> Download
+      </a>
+    `
+
+    element.appendChild(buttonContainer)
+  },
+}
