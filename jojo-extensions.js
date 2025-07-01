@@ -2848,26 +2848,53 @@ export const DownloadButtonExtension = {
         .download-button {
           display: inline-flex;
           align-items: center;
-          background: linear-gradient(to right, #1e90ff, #00bfff);
+          justify-content: center;
+          background: #2e6ee1;
           color: white;
           border: none;
-          padding: 10px 20px;
-          border-radius: 5px;
+          padding: 12px 24px;
+          border-radius: 6px;
           font-size: 16px;
+          font-weight: 500;
           cursor: pointer;
           text-decoration: none;
+          transition: background 0.3s ease;
         }
-        .download-icon {
-          margin-right: 10px;
-          font-size: 20px;
+        .download-button:hover {
+          background: #1f5ed1;
+        }
+        .download-button:active {
+          background: #184bb1;
         }
       </style>
 
-      <a class="download-button" target="_blank" href="https://drive.google.com/uc?export=download&id=1ARh23VueJHMmXjzZ0UkC5JnHJjp2Ye35">
-        <span class="download-icon">⬇️</span> Download
-      </a>
+      <button class="download-button">Download</button>
     `
 
+    const downloadButton = buttonContainer.querySelector('.download-button')
+
+    downloadButton.addEventListener('click', () => {
+      console.log('Download button clicked')
+
+      // Open the download link
+      window.open('https://drive.google.com/uc?export=download&id=1ARh23VueJHMmXjzZ0UkC5JnHJjp2Ye35', '_blank')
+
+      // Trigger Voiceflow exit path
+      window.voiceflow.chat.interact({
+        type: 'path',
+        payload: { path: 'download_clicked' }, // Customize this in Voiceflow
+      })
+
+      console.log('Exit path "download_clicked" triggered')
+    })
+
     element.appendChild(buttonContainer)
+
+    // Immediately continue the flow
+    window.voiceflow.chat.interact({
+      type: 'complete',
+      payload: {},
+    })
+    console.log('Flow automatically continued after button render')
   },
 }
