@@ -2863,27 +2863,10 @@ export const DownloadButtonExtension = {
         }
       </style>
 
-      <button class="download-button">
-        <span class="download-icon">⬇️</span> Download our 2025 Seminar Brochure
-      </button>
+      <a class="download-button" target="_blank" href="https://drive.google.com/uc?export=download&id=1ARh23VueJHMmXjzZ0UkC5JnHJjp2Ye35">
+        <span class="download-icon">⬇️</span> Download
+      </a>
     `
-
-    const downloadButton = buttonContainer.querySelector('.download-button')
-
-    downloadButton.addEventListener('click', () => {
-      console.log('Download button clicked')
-
-      // Open the download link
-      window.open('https://drive.google.com/uc?export=download&id=1ARh23VueJHMmXjzZ0UkC5JnHJjp2Ye35', '_blank')
-
-      // Trigger Voiceflow exit path
-      window.voiceflow.chat.interact({
-        type: 'path',
-        payload: { path: 'download_clicked' }, // You can customize this path name in your Voiceflow project
-      })
-
-      console.log('Exit path "download_clicked" triggered')
-    })
 
     element.appendChild(buttonContainer)
   },
