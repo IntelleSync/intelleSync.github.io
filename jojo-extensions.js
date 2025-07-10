@@ -2046,7 +2046,7 @@ export const FormExtension = {
             <option value="Wednesday, September 17, 2025 | Larry Johnson & Kristy Maitre">Wednesday, September 17, 2025 | Larry Johnson & Kristy Maitre</option>
             <option value="Friday, September 19, 2025 | Michael Miranda & Kristy Maitre">Friday, September 19, 2025 | Michael Miranda & Kristy Maitre</option>
             <option value="Tuesday, September 23, 2025 | AJ Reynolds & Randy Adams">Tuesday, September 23, 2025 | AJ Reynolds & Randy Adams</option>
-            <option value="Thursday, September 25, 2025 | AJ Reynolds & Kristy Maitre">Thursday, September 25, 2025 | AJ Reynolds & Kristy Maitre</option>
+            <option value="Thursday, September 25, 2025 | Larry Johnson & Kristy Maitre">Thursday, September 25, 2025 | Larry Johnson & Kristy Maitre</option>
             <option value="Wednesday, October 1, 2025 | Larry Johnson & Kristy Maitre">Wednesday, October 1, 2025 | Larry Johnson & Kristy Maitre</option>
           </select>
         </div>
