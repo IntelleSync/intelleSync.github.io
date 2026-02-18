@@ -1,17 +1,6 @@
 // VFI/O Airtable Support Gate Form (2-step + status gating)
-// Step 1: Email only -> Airtable lookup (spinner)
-//  - If match AND Status is Active or Trial:
-//      set Voiceflow vars: Name, Username, Email, Plan, Status
-//      reveal Message field with smooth animation
-//      display Name + @Username above message
-//  - If match BUT Status is Paused or Cancelled (or anything else):
-//      set Voiceflow vars: Name, Username, Email, Plan, Status
-//      DO NOT reveal message
-//      show deny message + lock
-//  - If no match: allow 2nd try
-//  - If no match again: show "cannot provide support" message and lock
-//
-// Trace requirement: trace.type and trace.payload.name MUST match ("ext_vfio_form")
+// Updated: only sends Voiceflow "complete" on STEP 2 (message submit)
+// Step 1 caches identity vars locally (no interact), Step 2 sends full payload.
 
 export const VFIOFormExtension = {
   name: 'VFI/O Support Form',
@@ -64,6 +53,9 @@ export const VFIOFormExtension = {
     let matchedRecord = null // Airtable record
     let supportAllowed = false
 
+    // NEW: cache identity vars after match so we can send them only on step 2
+    let vfIdentity = null // { Name, Username, Email, Plan, Status }
+
     // -----------------------------
     // UI
     // -----------------------------
@@ -92,12 +84,6 @@ export const VFIOFormExtension = {
           position: relative;
           box-sizing: border-box;
         }
-
-        ._16eqxif8 {
-          display: block;
-          padding: 0px;
-          background-color: #f4f4f400;
-          }
 
         .vfio-form-root .form-group { margin-bottom: 15px; }
 
@@ -370,7 +356,8 @@ export const VFIOFormExtension = {
       return records
     }
 
-    const setVoiceflowVarsFromRecord = (record, emailUsed) => {
+    // UPDATED: cache vars locally; DO NOT interact/complete on step 1
+    const setIdentityFromRecord = (record, emailUsed) => {
       const f = record?.fields || {}
 
       const Name = f[NAME_FIELD] ?? ''
@@ -379,15 +366,9 @@ export const VFIOFormExtension = {
       const Plan = f[PLAN_FIELD] ?? ''
       const Status = f[STATUS_FIELD] ?? ''
 
-      const vfPayload = { Name, Username, Email, Plan, Status }
-
-      console.log('[VFI/O Support Form] sending vars to Voiceflow:', vfPayload)
-      window.voiceflow?.chat?.interact({
-        type: 'complete',
-        payload: vfPayload,
-      })
-
-      return vfPayload
+      vfIdentity = { Name, Username, Email, Plan, Status }
+      console.log('[VFI/O Support Form] cached identity:', vfIdentity)
+      return vfIdentity
     }
 
     const normalizeStatus = (s) => String(s || '').trim().toLowerCase()
@@ -444,10 +425,10 @@ export const VFIOFormExtension = {
             matchedRecord = records[0]
             console.log('[VFI/O Support Form] match found:', matchedRecord?.id)
 
-            // Store identity vars in Voiceflow immediately
-            const vfPayload = setVoiceflowVarsFromRecord(matchedRecord, email)
+            // Cache identity vars locally (NO complete yet)
+            const vfPayload = setIdentityFromRecord(matchedRecord, email)
 
-            // Always show name/username once matched
+            // Show name/username once matched
             showMatchedHeader(vfPayload)
 
             // Lock email after match
@@ -516,11 +497,15 @@ export const VFIOFormExtension = {
 
       const Message = (messageInput.value || '').trim()
 
-      console.log('[VFI/O Support Form] sending message to Voiceflow:', { Message })
+      console.log('[VFI/O Support Form] sending final payload to Voiceflow:', {
+        ...(vfIdentity || {}),
+        Message,
+      })
 
+      // ONLY complete here (2nd submit)
       window.voiceflow?.chat?.interact({
         type: 'complete',
-        payload: { Message },
+        payload: { ...(vfIdentity || {}), Message },
       })
 
       submitBtn.textContent = 'Submitted'
