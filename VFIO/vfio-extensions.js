@@ -93,6 +93,10 @@ export const VFIOFormExtension = {
           box-sizing: border-box;
         }
 
+        ._16eqxif8 {
+          display: block;
+          }
+
         .vfio-form-root .form-group { margin-bottom: 15px; }
 
         .vfio-form-root label {
