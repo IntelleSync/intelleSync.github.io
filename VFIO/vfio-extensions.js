@@ -125,7 +125,7 @@ export const VFIOFormExtension = {
         .vfio-form-root .invalid { border-color: red !important; }
 
         .vfio-form-root .submit-btn {
-          background: #398CC4;
+          background: #26BFD9;
           color: white;
           border: none;
           padding: 14px 15px;
@@ -137,8 +137,11 @@ export const VFIOFormExtension = {
           font-weight: 600;
           transition: background 0.15s ease, transform 0.12s ease;
         }
-        .vfio-form-root .submit-btn:hover { background: #2E719E; transform: translateY(-1px); }
-        .vfio-form-root .submit-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+        
+        .vfio-form-root .submit-btn:hover { 
+          background: #1FA9C0; /* slightly darker for hover */
+          transform: translateY(-1px); 
+        }
 
         /* Spinner overlay */
         .vfio-form-root .vfio-overlay {
