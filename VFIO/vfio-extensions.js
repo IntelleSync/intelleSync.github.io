@@ -1,8 +1,13 @@
-// VFI/O Airtable Support Gate Form (2-step)
+// VFI/O Airtable Support Gate Form (2-step + status gating)
 // Step 1: Email only -> Airtable lookup (spinner)
-//  - If match: set Voiceflow vars: Name, Username, Email, Plan, Status
-//             reveal Message field with smooth animation
-//             display "Name" + "@Username" above message
+//  - If match AND Status is Active or Trial:
+//      set Voiceflow vars: Name, Username, Email, Plan, Status
+//      reveal Message field with smooth animation
+//      display Name + @Username above message
+//  - If match BUT Status is Paused or Cancelled (or anything else):
+//      set Voiceflow vars: Name, Username, Email, Plan, Status
+//      DO NOT reveal message
+//      show deny message + lock
 //  - If no match: allow 2nd try
 //  - If no match again: show "cannot provide support" message and lock
 //
@@ -34,23 +39,6 @@ export const VFIOFormExtension = {
     // -----------------------------
     // CONFIG (pass via trace.payload)
     // -----------------------------
-    // Example payload:
-    // {
-    //   "name": "ext_vfio_form",
-    //   "airtable": {
-    //     "baseId": "appXXXXXXXXXXXXXX",
-    //     "tableName": "Customers",
-    //     "tokenSource": "window",
-    //     "tokenKey": "__VFIO_AIRTABLE_TOKEN",
-    //     "fields": {
-    //       "email": "Email",
-    //       "name": "Name",
-    //       "username": "Username",
-    //       "plan": "Plan",
-    //       "status": "Status"
-    //     }
-    //   }
-    // }
     const airtableCfg = trace?.payload?.airtable || {}
     const baseId = airtableCfg.baseId
     const tableName = airtableCfg.tableName
@@ -73,7 +61,8 @@ export const VFIOFormExtension = {
     // STATE
     // -----------------------------
     let tries = 0
-    let matchedRecord = null // store Airtable record
+    let matchedRecord = null // Airtable record
+    let supportAllowed = false
 
     // -----------------------------
     // UI
@@ -265,7 +254,7 @@ export const VFIOFormExtension = {
             <div class="vfio-who-sub" data-username></div>
           </div>
 
-          <!-- STEP 2: MESSAGE (HIDDEN UNTIL MATCH) -->
+          <!-- STEP 2: MESSAGE (HIDDEN UNTIL MATCH + ELIGIBLE STATUS) -->
           <div class="reveal" data-reveal>
             <div class="form-group">
               <label for="vfio-message">Message</label>
@@ -378,7 +367,6 @@ export const VFIOFormExtension = {
     const setVoiceflowVarsFromRecord = (record, emailUsed) => {
       const f = record?.fields || {}
 
-      // Pull values from Airtable fields (with safe fallbacks)
       const Name = f[NAME_FIELD] ?? ''
       const Username = f[USERNAME_FIELD] ?? ''
       const Email = f[EMAIL_FIELD] ?? emailUsed ?? ''
@@ -396,20 +384,24 @@ export const VFIOFormExtension = {
       return vfPayload
     }
 
-    const showMatchedUI = (vfPayload) => {
-      // Populate top box
+    const normalizeStatus = (s) => String(s || '').trim().toLowerCase()
+    const isEligibleStatus = (statusValue) => {
+      const s = normalizeStatus(statusValue)
+      return s === 'active' || s === 'trial'
+    }
+
+    const showMatchedHeader = (vfPayload) => {
       const displayName = vfPayload.Name ? vfPayload.Name : 'Welcome back'
       const displayUser = vfPayload.Username ? `@${vfPayload.Username}` : ''
       if (nameEl) nameEl.textContent = displayName
       if (usernameEl) usernameEl.textContent = displayUser
-
       whoBox?.classList.add('show')
+    }
 
-      // Reveal message step
+    const revealMessageUI = () => {
       revealWrap?.classList.add('show')
-
-      // Update button label
       submitBtn.textContent = 'Submit Message'
+      setTimeout(() => messageInput?.focus?.(), 250)
     }
 
     const validateEmailStep = () => {
@@ -424,16 +416,11 @@ export const VFIOFormExtension = {
       return true
     }
 
-    const validateMessageStep = () => {
-      // Message is optional unless you want required. Keeping optional.
-      return true
-    }
-
     const onSubmit = async (e) => {
       e.preventDefault()
       clearError()
 
-      // STEP 1: Not matched yet -> verify email and search Airtable
+      // STEP 1: Not matched yet -> lookup
       if (!matchedRecord) {
         console.log('[VFI/O Support Form] step 1 submit')
         if (!validateEmailStep()) return
@@ -451,18 +438,33 @@ export const VFIOFormExtension = {
             matchedRecord = records[0]
             console.log('[VFI/O Support Form] match found:', matchedRecord?.id)
 
-            // Store variables into Voiceflow immediately
+            // Store identity vars in Voiceflow immediately
             const vfPayload = setVoiceflowVarsFromRecord(matchedRecord, email)
 
-            // Reveal message UI + show identity
-            showMatchedUI(vfPayload)
+            // Always show name/username once matched
+            showMatchedHeader(vfPayload)
 
-            // Lock email field after match (keeps things consistent)
+            // Lock email after match
             emailInput.disabled = true
 
-            // Focus message for good UX
-            setTimeout(() => messageInput?.focus?.(), 250)
+            // Gate by status
+            supportAllowed = isEligibleStatus(vfPayload.Status)
+            console.log('[VFI/O Support Form] status eligibility:', {
+              status: vfPayload.Status,
+              supportAllowed,
+            })
 
+            if (!supportAllowed) {
+              // Do not reveal message field
+              showError(
+                'Unfortunately we cannot provide support as your subscription status is not eligible.'
+              )
+              lockForm()
+              return
+            }
+
+            // Eligible -> reveal message step
+            revealMessageUI()
             return
           }
 
@@ -495,14 +497,19 @@ export const VFIOFormExtension = {
         }
       }
 
-      // STEP 2: Already matched -> submit message to Voiceflow
+      // STEP 2: Already matched - only allowed if eligible
       console.log('[VFI/O Support Form] step 2 submit (message)')
-      if (!validateMessageStep()) return
+
+      if (!supportAllowed) {
+        showError(
+          'Unfortunately we cannot provide support as your subscription status is not eligible.'
+        )
+        lockForm()
+        return
+      }
 
       const Message = (messageInput.value || '').trim()
 
-      // We already sent identity vars on match, but sending message now.
-      // This lets your flow continue down a "message submitted" path.
       console.log('[VFI/O Support Form] sending message to Voiceflow:', { Message })
 
       window.voiceflow?.chat?.interact({
@@ -510,7 +517,6 @@ export const VFIOFormExtension = {
         payload: { Message },
       })
 
-      // Lock after message submit
       submitBtn.textContent = 'Submitted'
       lockForm()
     }
