@@ -1,6 +1,7 @@
 // VFI/O Airtable Support Gate Form (2-step + status gating)
-// Updated: only sends Voiceflow "complete" on STEP 2 (message submit)
-// Step 1 caches identity vars locally (no interact), Step 2 sends full payload.
+// Option A: always uses Voiceflow "complete" to exit the function
+// - Eligible: completes on STEP 2 (message submit)
+// - Ineligible / No-match-twice: completes immediately with outcome flags
 
 export const VFIOFormExtension = {
   name: 'VFI/O Support Form',
@@ -277,6 +278,14 @@ export const VFIOFormExtension = {
     const usernameEl = container.querySelector('[data-username]')
     const revealWrap = container.querySelector('[data-reveal]')
 
+    // NEW: helper to complete the VF function with a payload
+    const completeFlow = (payload) => {
+      window.voiceflow?.chat?.interact({
+        type: 'complete',
+        payload,
+      })
+    }
+
     const setLoading = (isLoading, msg = 'Searching database…') => {
       if (overlay) overlay.classList.toggle('show', !!isLoading)
       if (statusEl) statusEl.textContent = msg
@@ -359,7 +368,7 @@ export const VFIOFormExtension = {
       return records
     }
 
-    // cache vars locally; DO NOT interact/complete on step 1
+    // cache vars locally; DO NOT complete on step 1
     const setIdentityFromRecord = (record, emailUsed) => {
       const f = record?.fields || {}
 
@@ -439,7 +448,18 @@ export const VFIOFormExtension = {
               supportAllowed,
             })
 
+            // INELIGIBLE: complete immediately (Option A)
             if (!supportAllowed) {
+              const payload = {
+                ...(vfIdentity || {}),
+                supportAllowed: false,
+                outcome: 'ineligible',
+                reason: 'status_not_eligible',
+              }
+
+              console.log('[VFI/O Support Form] ineligible — completing flow:', payload)
+              completeFlow(payload)
+
               showError(
                 'Unfortunately we cannot provide support as your subscription status is not eligible.'
               )
@@ -447,6 +467,7 @@ export const VFIOFormExtension = {
               return
             }
 
+            // Eligible -> reveal message step
             revealMessageUI()
             return
           }
@@ -455,14 +476,23 @@ export const VFIOFormExtension = {
           console.log('[VFI/O Support Form] no match for email:', email)
 
           if (tries < 2) {
-            showError(
-              'We couldn’t match that email to our records. Please try again.'
-            )
+            showError('We couldn’t match that email to our records. Please try again.')
             markInvalid(emailInput, true)
             emailInput.focus()
             emailInput.select?.()
             return
           }
+
+          // NO MATCH TWICE: complete immediately (Option A)
+          const payload = {
+            Email: email,
+            supportAllowed: false,
+            outcome: 'no_match',
+            reason: 'email_not_found_twice',
+          }
+
+          console.log('[VFI/O Support Form] no match twice — completing flow:', payload)
+          completeFlow(payload)
 
           showError(
             'Unfortunately we cannot provide support as we cannot match your email to any of our records.'
@@ -483,6 +513,16 @@ export const VFIOFormExtension = {
       console.log('[VFI/O Support Form] step 2 submit (message)')
 
       if (!supportAllowed) {
+        // Should be unreachable now (we complete+lock on ineligible), but keep safe
+        const payload = {
+          ...(vfIdentity || {}),
+          supportAllowed: false,
+          outcome: 'ineligible',
+          reason: 'status_not_eligible',
+        }
+        console.log('[VFI/O Support Form] ineligible (step2 guard) — completing flow:', payload)
+        completeFlow(payload)
+
         showError(
           'Unfortunately we cannot provide support as your subscription status is not eligible.'
         )
@@ -492,15 +532,16 @@ export const VFIOFormExtension = {
 
       const Message = (messageInput.value || '').trim()
 
-      console.log('[VFI/O Support Form] sending final payload to Voiceflow:', {
+      const payload = {
         ...(vfIdentity || {}),
         Message,
-      })
+        supportAllowed: true,
+        outcome: 'message_submitted',
+        reason: 'ok',
+      }
 
-      window.voiceflow?.chat?.interact({
-        type: 'complete',
-        payload: { ...(vfIdentity || {}), Message },
-      })
+      console.log('[VFI/O Support Form] message submit — completing flow:', payload)
+      completeFlow(payload)
 
       submitBtn.textContent = 'Submitted'
       lockForm()
