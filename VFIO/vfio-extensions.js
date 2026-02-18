@@ -1,6 +1,7 @@
 // VFI/O Airtable Support Gate Form (2-step + status gating)
 // Updated: only sends Voiceflow "complete" on STEP 2 (message submit)
 // Step 1 caches identity vars locally (no interact), Step 2 sends full payload.
+// Added: CSS override for ._16eqxif8 (padding: 0)
 
 export const VFIOFormExtension = {
   name: 'VFI/O Support Form',
@@ -53,7 +54,7 @@ export const VFIOFormExtension = {
     let matchedRecord = null // Airtable record
     let supportAllowed = false
 
-    // NEW: cache identity vars after match so we can send them only on step 2
+    // Cache identity vars after match so we can send them only on step 2
     let vfIdentity = null // { Name, Username, Email, Plan, Status }
 
     // -----------------------------
@@ -69,6 +70,12 @@ export const VFIOFormExtension = {
       <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
       <style>
+        /* ADDED: Voiceflow wrapper padding override (your requested class) */
+        ._16eqxif8 {
+          display: block;
+          padding: 0px;
+        }
+
         .vfio-form-root { width: 100%; max-width: 100%; box-sizing: border-box; }
 
         .vfio-form-root .form-container {
@@ -356,7 +363,7 @@ export const VFIOFormExtension = {
       return records
     }
 
-    // UPDATED: cache vars locally; DO NOT interact/complete on step 1
+    // Cache vars locally; DO NOT interact/complete on step 1
     const setIdentityFromRecord = (record, emailUsed) => {
       const f = record?.fields || {}
 
