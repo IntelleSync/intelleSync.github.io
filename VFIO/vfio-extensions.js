@@ -1,8 +1,6 @@
 // VFI/O Airtable Support Gate Form (2-step + status gating)
-// Labels removed — placeholders only
 // Updated: only sends Voiceflow "complete" on STEP 2 (message submit)
 // Step 1 caches identity vars locally (no interact), Step 2 sends full payload.
-// Added: CSS override for ._16eqxif8 (padding: 0)
 
 export const VFIOFormExtension = {
   name: 'VFI/O Support Form',
@@ -52,8 +50,10 @@ export const VFIOFormExtension = {
     // STATE
     // -----------------------------
     let tries = 0
-    let matchedRecord = null
+    let matchedRecord = null // Airtable record
     let supportAllowed = false
+
+    // cache identity vars after match so we can send them only on step 2
     let vfIdentity = null // { Name, Username, Email, Plan, Status }
 
     // -----------------------------
@@ -93,7 +93,6 @@ export const VFIOFormExtension = {
 
         .vfio-form-root .form-group { margin-bottom: 15px; }
 
-        /* Inputs only (no labels) */
         .vfio-form-root input,
         .vfio-form-root textarea {
           width: 100%;
@@ -115,6 +114,12 @@ export const VFIOFormExtension = {
         }
 
         .vfio-form-root textarea { min-height: 120px; resize: vertical; }
+
+        /* Nice placeholder tone (optional) */
+        .vfio-form-root input::placeholder,
+        .vfio-form-root textarea::placeholder {
+          color: rgba(0,0,0,0.45);
+        }
 
         .vfio-form-root .invalid { border-color: red !important; }
 
@@ -234,16 +239,9 @@ export const VFIOFormExtension = {
         </div>
 
         <form data-form>
-          <!-- STEP 1: EMAIL ONLY (no label, placeholder only) -->
+          <!-- STEP 1: EMAIL ONLY (label removed) -->
           <div class="form-group" data-email-group>
-            <input
-              id="vfio-email"
-              name="email"
-              type="email"
-              autocomplete="email"
-              placeholder="Enter your email"
-              required
-            />
+            <input id="vfio-email" name="email" type="email" autocomplete="email" placeholder="Enter your email" required />
           </div>
 
           <!-- MATCHED USER DISPLAY -->
@@ -252,14 +250,10 @@ export const VFIOFormExtension = {
             <div class="vfio-who-sub" data-username></div>
           </div>
 
-          <!-- STEP 2: MESSAGE (no label, placeholder only) -->
+          <!-- STEP 2: MESSAGE (label removed) -->
           <div class="reveal" data-reveal>
             <div class="form-group">
-              <textarea
-                id="vfio-message"
-                name="message"
-                placeholder="How can we help?"
-              ></textarea>
+              <textarea id="vfio-message" name="message" placeholder="How can we help?"></textarea>
             </div>
           </div>
 
@@ -365,6 +359,7 @@ export const VFIOFormExtension = {
       return records
     }
 
+    // cache vars locally; DO NOT interact/complete on step 1
     const setIdentityFromRecord = (record, emailUsed) => {
       const f = record?.fields || {}
 
@@ -434,7 +429,6 @@ export const VFIOFormExtension = {
             console.log('[VFI/O Support Form] match found:', matchedRecord?.id)
 
             const vfPayload = setIdentityFromRecord(matchedRecord, email)
-
             showMatchedHeader(vfPayload)
 
             emailInput.disabled = true
