@@ -95,7 +95,8 @@ export const VFIOFormExtension = {
 
         ._16eqxif8 {
           display: block;
-          padding: 0px
+          padding: 0px;
+          background-color: #f4f4f400;
           }
 
         .vfio-form-root .form-group { margin-bottom: 15px; }
