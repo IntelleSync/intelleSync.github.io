@@ -611,44 +611,31 @@ export const SendingEmailExtension = {
   match: ({ trace }) => trace.type === 'ext_sending_email',
 
   render: ({ trace, element }) => {
-    const style = document.createElement('style');
-    style.textContent = `
-      .email-loader {
-        width: fit-content;
-        font-weight: bold;
-        font-family: 'Poppins', sans-serif;
-        font-size: 20px;
-        clip-path: inset(0 3ch 0 0);
-        animation: emailL4 1s steps(4) infinite;
-        padding: 8px 4px;
-        color: #333;
-      }
-      .email-loader:before {
-        content: "Sending email...";
-      }
-      @keyframes emailL4 {
-        to { clip-path: inset(0 -1ch 0 0); }
-      }
-      .email-loader-done {
-        font-family: 'Poppins', sans-serif;
-        font-size: 20px;
-        font-weight: bold;
-        padding: 8px 4px;
-        color: #2e7d32;
-      }
-    `;
-    document.head.appendChild(style);
-
     const container = document.createElement('div');
-    const loader = document.createElement('div');
-    loader.className = 'email-loader';
-    container.appendChild(loader);
+    container.style.cssText = `
+      font-weight: bold;
+      font-family: 'Poppins', sans-serif;
+      font-size: 20px;
+      padding: 8px 4px;
+      color: #333;
+    `;
+
+    // JS-driven dots animation instead of CSS pseudo-element
+    const states = ['Sending email', 'Sending email.', 'Sending email..', 'Sending email...'];
+    let i = 0;
+    container.textContent = states[0];
+
+    const interval = setInterval(() => {
+      i = (i + 1) % states.length;
+      container.textContent = states[i];
+    }, 250);
+
     element.appendChild(container);
 
     setTimeout(() => {
-      loader.classList.remove('email-loader');
-      loader.classList.add('email-loader-done');
-      loader.textContent = '✅ Email sent!';
+      clearInterval(interval);
+      container.textContent = '✅ Email sent!';
+      container.style.color = '#2e7d32';
 
       window.voiceflow.chat.interact({
         type: 'complete',
