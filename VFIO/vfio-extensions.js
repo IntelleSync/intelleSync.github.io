@@ -619,8 +619,23 @@ export const SendingEmailExtension = {
       document.head.appendChild(link);
     }
 
+    // Find the shadow root to inject styles into
+    const chatDiv = document.getElementById('voiceflow-chat');
+    const shadowRoot = chatDiv && chatDiv.shadowRoot ? chatDiv.shadowRoot : document.head;
+
+    const style = document.createElement('style');
+    style.textContent = [
+      '@keyframes vfio-scaleIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.2);opacity:1}100%{transform:scale(1);opacity:1}}',
+      '@keyframes vfio-drawTick{0%{stroke-dashoffset:50}100%{stroke-dashoffset:0}}',
+      '@keyframes vfio-fadeSlideIn{0%{opacity:0;transform:translateX(-6px)}100%{opacity:1;transform:translateX(0)}}',
+      '.vfio-tick-circle{animation:vfio-scaleIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards}',
+      '.vfio-tick-check{stroke-dasharray:50;stroke-dashoffset:50;animation:vfio-drawTick 0.35s ease forwards 0.3s}',
+      '.vfio-tick-label{font-family:"DM Sans",sans-serif;font-weight:600;font-size:20px;color:#6AD3E5;opacity:0;animation:vfio-fadeSlideIn 0.3s ease forwards 0.5s}'
+    ].join('');
+    shadowRoot.appendChild(style);
+
     const container = document.createElement('div');
-    container.style.cssText = 'font-family: DM Sans, sans-serif; padding: 8px 4px; display: flex; align-items: center; gap: 8px;';
+    container.style.cssText = 'font-family: "DM Sans", sans-serif; padding: 8px 4px; display: flex; align-items: center; gap: 8px;';
 
     const textEl = document.createElement('span');
     textEl.style.cssText = 'font-weight: 400; font-size: 20px; color: #6AD3E5;';
@@ -637,17 +652,6 @@ export const SendingEmailExtension = {
 
     setTimeout(() => {
       clearInterval(interval);
-
-      const style = document.createElement('style');
-      style.textContent = [
-        '@keyframes vfio-scaleIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.2);opacity:1}100%{transform:scale(1);opacity:1}}',
-        '@keyframes vfio-drawTick{0%{stroke-dashoffset:50}100%{stroke-dashoffset:0}}',
-        '@keyframes vfio-fadeSlideIn{0%{opacity:0;transform:translateX(-6px)}100%{opacity:1;transform:translateX(0)}}',
-        '.vfio-tick-circle{animation:vfio-scaleIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards}',
-        '.vfio-tick-check{stroke-dasharray:50;stroke-dashoffset:50;animation:vfio-drawTick 0.35s ease forwards 0.3s}',
-        '.vfio-tick-label{font-family:DM Sans,sans-serif;font-weight:600;font-size:20px;color:#6AD3E5;opacity:0;animation:vfio-fadeSlideIn 0.3s ease forwards 0.5s}'
-      ].join('');
-      document.head.appendChild(style);
 
       container.innerHTML = '';
 
