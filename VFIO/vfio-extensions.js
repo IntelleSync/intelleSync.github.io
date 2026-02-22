@@ -139,7 +139,7 @@ export const VFIOFormExtension = {
         }
         
         .vfio-form-root .submit-btn:hover { 
-          background: #1FA9C0; /* slightly darker for hover */
+          background: #1FA9C0;
           transform: translateY(-1px); 
         }
 
@@ -281,7 +281,6 @@ export const VFIOFormExtension = {
     const usernameEl = container.querySelector('[data-username]')
     const revealWrap = container.querySelector('[data-reveal]')
 
-    // NEW: helper to complete the VF function with a payload
     const completeFlow = (payload) => {
       window.voiceflow?.chat?.interact({
         type: 'complete',
@@ -371,7 +370,6 @@ export const VFIOFormExtension = {
       return records
     }
 
-    // cache vars locally; DO NOT complete on step 1
     const setIdentityFromRecord = (record, emailUsed) => {
       const f = record?.fields || {}
 
@@ -422,7 +420,6 @@ export const VFIOFormExtension = {
       e.preventDefault()
       clearError()
 
-      // STEP 1: Not matched yet -> lookup
       if (!matchedRecord) {
         console.log('[VFI/O Support Form] step 1 submit')
         if (!validateEmailStep()) return
@@ -451,7 +448,6 @@ export const VFIOFormExtension = {
               supportAllowed,
             })
 
-            // INELIGIBLE: complete immediately (Option A)
             if (!supportAllowed) {
               const payload = {
                 ...(vfIdentity || {}),
@@ -470,23 +466,20 @@ export const VFIOFormExtension = {
               return
             }
 
-            // Eligible -> reveal message step
             revealMessageUI()
             return
           }
 
-          // no match
           console.log('[VFI/O Support Form] no match for email:', email)
 
           if (tries < 2) {
-            showError('We couldn’t match that email to our records. Please try again.')
+            showError('We couldn't match that email to our records. Please try again.')
             markInvalid(emailInput, true)
             emailInput.focus()
             emailInput.select?.()
             return
           }
 
-          // NO MATCH TWICE: complete immediately (Option A)
           const payload = {
             Email: email,
             supportAllowed: false,
@@ -512,11 +505,9 @@ export const VFIOFormExtension = {
         }
       }
 
-      // STEP 2: Already matched - only allowed if eligible
       console.log('[VFI/O Support Form] step 2 submit (message)')
 
       if (!supportAllowed) {
-        // Should be unreachable now (we complete+lock on ineligible), but keep safe
         const payload = {
           ...(vfIdentity || {}),
           supportAllowed: false,
@@ -568,26 +559,22 @@ export const HideInputExtension = {
   type: "effect",
   match: ({ trace }) => trace.type === "ext_hide_input" || trace.payload?.name === "ext_hide_input",
   effect: ({ trace }) => {
-    console.log("ðŸ”¹ HideInputExtension triggered", trace);
+    console.log("🔹 HideInputExtension triggered", trace);
 
-    // Get the Voiceflow chat container
     const chatDiv = document.getElementById("voiceflow-chat");
 
     if (chatDiv && chatDiv.shadowRoot) {
-      // Access the shadow root
       const shadowRoot = chatDiv.shadowRoot;
-
-      // Find the input container inside the shadow DOM
       const inputContainer = shadowRoot.querySelector(".vfrc-input-container");
 
       if (inputContainer) {
-        inputContainer.style.display = "none"; // Hide input field
-        console.log("âœ… vfrc-input-container hidden inside shadow root");
+        inputContainer.style.display = "none";
+        console.log("✅ vfrc-input-container hidden inside shadow root");
       } else {
-        console.warn("âš ï¸ vfrc-input-container not found inside shadow root");
+        console.warn("⚠️ vfrc-input-container not found inside shadow root");
       }
     } else {
-      console.warn("âš ï¸ voiceflow-chat or shadowRoot not found");
+      console.warn("⚠️ voiceflow-chat or shadowRoot not found");
     }
   }
 };
@@ -597,38 +584,33 @@ export const ShowInputExtension = {
   type: "effect",
   match: ({ trace }) => trace.type === "ext_show_input" || trace.payload?.name === "ext_show_input",
   effect: ({ trace }) => {
-    console.log("ðŸ”¹ ShowInputExtension triggered", trace);
+    console.log("🔹 ShowInputExtension triggered", trace);
 
-    // Get the Voiceflow chat container
     const chatDiv = document.getElementById("voiceflow-chat");
 
     if (chatDiv && chatDiv.shadowRoot) {
-      // Access the shadow root
       const shadowRoot = chatDiv.shadowRoot;
-
-      // Find the input container inside the shadow DOM
       const inputContainer = shadowRoot.querySelector(".vfrc-input-container");
 
       if (inputContainer) {
-        inputContainer.style.display = ""; // Show input field
-        console.log("âœ… vfrc-input-container is now visible again");
+        inputContainer.style.display = "";
+        console.log("✅ vfrc-input-container is now visible again");
       } else {
-        console.warn("âš ï¸ vfrc-input-container not found inside shadow root");
+        console.warn("⚠️ vfrc-input-container not found inside shadow root");
       }
     } else {
-      console.warn("âš ï¸ voiceflow-chat or shadowRoot not found");
+      console.warn("⚠️ voiceflow-chat or shadowRoot not found");
     }
   }
 };
 
-const SendingEmailExtension = {
+export const SendingEmailExtension = {
   name: 'SendingEmail',
   type: 'response',
-  
+
   match: ({ trace }) => trace.type === 'ext_sending_email',
-  
+
   render: ({ trace, element }) => {
-    // Inject CSS
     const style = document.createElement('style');
     style.textContent = `
       .email-loader {
@@ -657,20 +639,17 @@ const SendingEmailExtension = {
     `;
     document.head.appendChild(style);
 
-    // Render loader
     const container = document.createElement('div');
     const loader = document.createElement('div');
     loader.className = 'email-loader';
     container.appendChild(loader);
     element.appendChild(container);
 
-    // After 3 seconds: swap to done message and continue flow
     setTimeout(() => {
       loader.classList.remove('email-loader');
       loader.classList.add('email-loader-done');
       loader.textContent = '✅ Email sent!';
 
-      // Continue the Voiceflow flow
       window.voiceflow.chat.interact({
         type: 'complete',
         payload: {}
