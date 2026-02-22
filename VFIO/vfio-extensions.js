@@ -608,35 +608,74 @@ export const SendingEmailExtension = {
   name: 'SendingEmail',
   type: 'response',
 
-  match: ({ trace }) => {
-    const matched = trace.type === 'ext_sending_email';
-    console.log('[SendingEmail] match check:', trace.type, '->', matched);
-    return matched;
-  },
+  match: ({ trace }) => trace.type === 'ext_sending_email',
 
   render: ({ trace, element }) => {
-    console.log('[SendingEmail] render called');
-
     const container = document.createElement('div');
-    container.style.cssText = 'font-weight:bold;font-family:Poppins,sans-serif;font-size:20px;padding:8px 4px;color:#333;min-height:32px;';
-    container.textContent = 'Sending email';
-    element.appendChild(container);
+    container.style.cssText = `
+      font-family: 'Poppins', sans-serif;
+      padding: 8px 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    `;
 
-    console.log('[SendingEmail] container appended, starting animation');
-
+    // JS-driven dots animation
+    const textEl = document.createElement('span');
+    textEl.style.cssText = `font-weight: bold; font-size: 20px; color: #333;`;
     const states = ['Sending email', 'Sending email.', 'Sending email..', 'Sending email...'];
     let i = 0;
-
+    textEl.textContent = states[0];
     const interval = setInterval(() => {
       i = (i + 1) % states.length;
-      container.textContent = states[i];
+      textEl.textContent = states[i];
     }, 250);
 
+    container.appendChild(textEl);
+    element.appendChild(container);
+
     setTimeout(() => {
-      console.log('[SendingEmail] 3s elapsed, completing');
       clearInterval(interval);
-      container.textContent = '\u2705 Email sent!';
-      container.style.color = '#2e7d32';
+
+      // Replace with animated tick + label
+      container.innerHTML = `
+        <style>
+          @keyframes scaleIn {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes drawTick {
+            0% { stroke-dashoffset: 50; }
+            100% { stroke-dashoffset: 0; }
+          }
+          @keyframes fadeSlideIn {
+            0% { opacity: 0; transform: translateX(-6px); }
+            100% { opacity: 1; transform: translateX(0); }
+          }
+          .tick-circle {
+            animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          }
+          .tick-check {
+            stroke-dasharray: 50;
+            stroke-dashoffset: 50;
+            animation: drawTick 0.35s ease forwards 0.3s;
+          }
+          .tick-label {
+            font-weight: 600;
+            font-size: 20px;
+            color: #2e7d32;
+            opacity: 0;
+            animation: fadeSlideIn 0.3s ease forwards 0.5s;
+          }
+        </style>
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle class="tick-circle" cx="16" cy="16" r="15" fill="#2e7d32"/>
+          <polyline class="tick-check" points="8,16 13,22 24,10" 
+            stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <span class="tick-label">Email sent!</span>
+      `;
 
       window.voiceflow.chat.interact({
         type: 'complete',
