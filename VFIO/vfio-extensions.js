@@ -620,3 +620,71 @@ export const ShowInputExtension = {
     }
   }
 };
+
+const SendingEmailExtension = {
+  name: 'SendingEmail',
+  type: 'response',
+  
+  match: ({ trace }) => trace.type === 'ext_sending_email',
+  
+  render: ({ trace, element }) => {
+    // Inject CSS
+    const style = document.createElement('style');
+    style.textContent = `
+      .email-loader {
+        width: fit-content;
+        font-weight: bold;
+        font-family: 'Poppins', sans-serif;
+        font-size: 20px;
+        clip-path: inset(0 3ch 0 0);
+        animation: emailL4 1s steps(4) infinite;
+        padding: 8px 4px;
+        color: #333;
+      }
+      .email-loader:before {
+        content: "Sending email...";
+      }
+      @keyframes emailL4 {
+        to { clip-path: inset(0 -1ch 0 0); }
+      }
+      .email-loader-done {
+        font-family: 'Poppins', sans-serif;
+        font-size: 20px;
+        font-weight: bold;
+        padding: 8px 4px;
+        color: #2e7d32;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Render loader
+    const container = document.createElement('div');
+    const loader = document.createElement('div');
+    loader.className = 'email-loader';
+    container.appendChild(loader);
+    element.appendChild(container);
+
+    // After 3 seconds: swap to done message and continue flow
+    setTimeout(() => {
+      loader.classList.remove('email-loader');
+      loader.classList.add('email-loader-done');
+      loader.textContent = '✅ Email sent!';
+
+      // Continue the Voiceflow flow
+      window.voiceflow.chat.interact({
+        type: 'complete',
+        payload: {}
+      });
+    }, 3000);
+  }
+};
+
+// Register with your widget
+window.voiceflow.chat.load({
+  verify: { projectID: 'YOUR_PROJECT_ID' },
+  url: 'https://general-runtime.voiceflow.com',
+  versionID: 'production',
+  assistant: {
+    extensions: [SendingEmailExtension]
+  }
+});
