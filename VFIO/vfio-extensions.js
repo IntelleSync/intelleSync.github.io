@@ -608,33 +608,34 @@ export const SendingEmailExtension = {
   name: 'SendingEmail',
   type: 'response',
 
-  match: ({ trace }) => trace.type === 'ext_sending_email',
+  match: ({ trace }) => {
+    const matched = trace.type === 'ext_sending_email';
+    console.log('[SendingEmail] match check:', trace.type, '->', matched);
+    return matched;
+  },
 
   render: ({ trace, element }) => {
-    const container = document.createElement('div');
-    container.style.cssText = `
-      font-weight: bold;
-      font-family: 'Poppins', sans-serif;
-      font-size: 20px;
-      padding: 8px 4px;
-      color: #333;
-    `;
+    console.log('[SendingEmail] render called');
 
-    // JS-driven dots animation instead of CSS pseudo-element
+    const container = document.createElement('div');
+    container.style.cssText = 'font-weight:bold;font-family:Poppins,sans-serif;font-size:20px;padding:8px 4px;color:#333;min-height:32px;';
+    container.textContent = 'Sending email';
+    element.appendChild(container);
+
+    console.log('[SendingEmail] container appended, starting animation');
+
     const states = ['Sending email', 'Sending email.', 'Sending email..', 'Sending email...'];
     let i = 0;
-    container.textContent = states[0];
 
     const interval = setInterval(() => {
       i = (i + 1) % states.length;
       container.textContent = states[i];
     }, 250);
 
-    element.appendChild(container);
-
     setTimeout(() => {
+      console.log('[SendingEmail] 3s elapsed, completing');
       clearInterval(interval);
-      container.textContent = '✅ Email sent!';
+      container.textContent = '\u2705 Email sent!';
       container.style.color = '#2e7d32';
 
       window.voiceflow.chat.interact({
