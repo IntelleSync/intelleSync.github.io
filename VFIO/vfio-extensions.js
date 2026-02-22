@@ -611,18 +611,19 @@ export const SendingEmailExtension = {
   match: ({ trace }) => trace.type === 'ext_sending_email',
 
   render: ({ trace, element }) => {
-    const container = document.createElement('div');
-    container.style.cssText = `
-      font-family: 'Poppins', sans-serif;
-      padding: 8px 4px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    `;
+    if (!document.querySelector('#vfio-dmsans-font')) {
+      const link = document.createElement('link');
+      link.id = 'vfio-dmsans-font';
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600&display=swap';
+      document.head.appendChild(link);
+    }
 
-    // JS-driven dots animation
+    const container = document.createElement('div');
+    container.style.cssText = 'font-family: DM Sans, sans-serif; padding: 8px 4px; display: flex; align-items: center; gap: 8px;';
+
     const textEl = document.createElement('span');
-    textEl.style.cssText = `font-weight: bold; font-size: 20px; color: #333;`;
+    textEl.style.cssText = 'font-weight: 400; font-size: 20px; color: #6AD3E5;';
     const states = ['Sending email', 'Sending email.', 'Sending email..', 'Sending email...'];
     let i = 0;
     textEl.textContent = states[0];
@@ -637,45 +638,49 @@ export const SendingEmailExtension = {
     setTimeout(() => {
       clearInterval(interval);
 
-      // Replace with animated tick + label
-      container.innerHTML = `
-        <style>
-          @keyframes scaleIn {
-            0% { transform: scale(0); opacity: 0; }
-            60% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-          }
-          @keyframes drawTick {
-            0% { stroke-dashoffset: 50; }
-            100% { stroke-dashoffset: 0; }
-          }
-          @keyframes fadeSlideIn {
-            0% { opacity: 0; transform: translateX(-6px); }
-            100% { opacity: 1; transform: translateX(0); }
-          }
-          .tick-circle {
-            animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-          }
-          .tick-check {
-            stroke-dasharray: 50;
-            stroke-dashoffset: 50;
-            animation: drawTick 0.35s ease forwards 0.3s;
-          }
-          .tick-label {
-            font-weight: 600;
-            font-size: 20px;
-            color: #2e7d32;
-            opacity: 0;
-            animation: fadeSlideIn 0.3s ease forwards 0.5s;
-          }
-        </style>
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle class="tick-circle" cx="16" cy="16" r="15" fill="#2e7d32"/>
-          <polyline class="tick-check" points="8,16 13,22 24,10" 
-            stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        </svg>
-        <span class="tick-label">Email sent!</span>
-      `;
+      const style = document.createElement('style');
+      style.textContent = [
+        '@keyframes vfio-scaleIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.2);opacity:1}100%{transform:scale(1);opacity:1}}',
+        '@keyframes vfio-drawTick{0%{stroke-dashoffset:50}100%{stroke-dashoffset:0}}',
+        '@keyframes vfio-fadeSlideIn{0%{opacity:0;transform:translateX(-6px)}100%{opacity:1;transform:translateX(0)}}',
+        '.vfio-tick-circle{animation:vfio-scaleIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards}',
+        '.vfio-tick-check{stroke-dasharray:50;stroke-dashoffset:50;animation:vfio-drawTick 0.35s ease forwards 0.3s}',
+        '.vfio-tick-label{font-family:DM Sans,sans-serif;font-weight:600;font-size:20px;color:#6AD3E5;opacity:0;animation:vfio-fadeSlideIn 0.3s ease forwards 0.5s}'
+      ].join('');
+      document.head.appendChild(style);
+
+      container.innerHTML = '';
+
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '32');
+      svg.setAttribute('height', '32');
+      svg.setAttribute('viewBox', '0 0 32 32');
+      svg.setAttribute('fill', 'none');
+
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('class', 'vfio-tick-circle');
+      circle.setAttribute('cx', '16');
+      circle.setAttribute('cy', '16');
+      circle.setAttribute('r', '15');
+      circle.setAttribute('fill', '#6AD3E5');
+      svg.appendChild(circle);
+
+      const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      poly.setAttribute('class', 'vfio-tick-check');
+      poly.setAttribute('points', '8,16 13,22 24,10');
+      poly.setAttribute('stroke', 'white');
+      poly.setAttribute('stroke-width', '2.5');
+      poly.setAttribute('stroke-linecap', 'round');
+      poly.setAttribute('stroke-linejoin', 'round');
+      poly.setAttribute('fill', 'none');
+      svg.appendChild(poly);
+
+      const label = document.createElement('span');
+      label.className = 'vfio-tick-label';
+      label.textContent = 'Email sent!';
+
+      container.appendChild(svg);
+      container.appendChild(label);
 
       window.voiceflow.chat.interact({
         type: 'complete',
