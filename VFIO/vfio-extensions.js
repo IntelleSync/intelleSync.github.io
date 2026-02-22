@@ -678,13 +678,3 @@ const SendingEmailExtension = {
     }, 3000);
   }
 };
-
-// Register with your widget
-window.voiceflow.chat.load({
-  verify: { projectID: 'YOUR_PROJECT_ID' },
-  url: 'https://general-runtime.voiceflow.com',
-  versionID: 'production',
-  assistant: {
-    extensions: [SendingEmailExtension]
-  }
-});
