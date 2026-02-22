@@ -473,7 +473,7 @@ export const VFIOFormExtension = {
           console.log('[VFI/O Support Form] no match for email:', email)
 
           if (tries < 2) {
-            showError('We couldn't match that email to our records. Please try again.')
+            showError("We couldn't match that email to our records. Please try again.")
             markInvalid(emailInput, true)
             emailInput.focus()
             emailInput.select?.()
