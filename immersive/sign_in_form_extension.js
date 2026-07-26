@@ -243,13 +243,13 @@ export const HideInputExtension = {
       const shadowRoot = chatDiv.shadowRoot;
 
       // Find the input container inside the shadow DOM
-      const inputContainer = shadowRoot.querySelector(".vfrc-input-container");
+      const inputContainer = shadowRoot.querySelector(".vfrc-footer");
 
       if (inputContainer) {
         inputContainer.style.display = "none"; // Hide input field
-        console.log("âœ… vfrc-input-container hidden inside shadow root");
+        console.log("âœ… vfrc-footer hidden inside shadow root");
       } else {
-        console.warn("âš ï¸ vfrc-input-container not found inside shadow root");
+        console.warn("âš ï¸ vfrc-footer not found inside shadow root");
       }
     } else {
       console.warn("âš ï¸ voiceflow-chat or shadowRoot not found");
