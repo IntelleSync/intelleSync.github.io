@@ -210,7 +210,7 @@ export const SignInFormExtension = {
       if (!valid) return;
 
       submitBtn.disabled = true;
-      submitBtn.querySelector('span').textContent = 'Submitting...';
+      submitBtn.querySelector('span').textContent = 'Submitted';
 
       // Disable the form so it can't be resubmitted
       [firstNameInput, lastNameInput, emailInput].forEach((el) => (el.disabled = true));
