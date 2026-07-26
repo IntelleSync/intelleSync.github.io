@@ -13,7 +13,7 @@
  *
  * SETUP IN VOICEFLOW:
  * 1. Add a "Custom Action" / extension step to your diagram.
- * 2. Set the step's trace payload `name` to "core4_onboarding_form"
+ * 2. Set the step's trace payload `name` to "sign_in_form"
  *    (or change EXTENSION_NAME below to match your diagram).
  * 3. Register this extension in your Voiceflow web/react chat widget:
  *
@@ -30,7 +30,7 @@
  *    {email} as normal Voiceflow variables.
  */
 
-export const EXTENSION_NAME = 'core4_onboarding_form';
+export const EXTENSION_NAME = 'sign_in_form';
 
 export const Core4OnboardingExtension = {
   name: 'Core4OnboardingForm',
