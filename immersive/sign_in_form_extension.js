@@ -13,16 +13,16 @@
  *
  * SETUP IN VOICEFLOW:
  * 1. Add a "Custom Action" / extension step to your diagram.
- * 2. Set the step's trace payload `name` to "sign_in_form"
- *    (or change EXTENSION_NAME below to match your diagram).
+ * 2. Set the step's trace payload `name` to "ext_signInForm"
+ *    (or update the `match` function below to fit your diagram).
  * 3. Register this extension in your Voiceflow web/react chat widget:
  *
- *      import { Core4OnboardingExtension } from './core4-onboarding-extension.js';
+ *      import { SignInFormExtension } from './sign-in-form-extension.js';
  *
  *      voiceflow.chat.load({
  *        // ...
  *        render: {
- *          extensions: [Core4OnboardingExtension],
+ *          extensions: [SignInFormExtension],
  *        },
  *      });
  *
@@ -30,16 +30,12 @@
  *    {email} as normal Voiceflow variables.
  */
 
-export const EXTENSION_NAME = 'sign_in_form';
-
-export const Core4OnboardingExtension = {
-  name: 'Core4OnboardingForm',
+export const SignInFormExtension = {
+  name: 'SignInForm',
   type: 'response',
-
-  // Matches a trace whose payload.name (or trace.type) equals EXTENSION_NAME.
-  // Adjust this matcher if your diagram emits the trace differently.
   match: ({ trace }) =>
-    trace.type === EXTENSION_NAME || trace.payload?.name === EXTENSION_NAME,
+    trace.type === 'ext_signInForm' ||
+    trace.payload?.name === 'ext_signInForm',
 
   render: ({ trace, element }) => {
     // ---- Config pulled from the trace payload (with sensible defaults) ----
