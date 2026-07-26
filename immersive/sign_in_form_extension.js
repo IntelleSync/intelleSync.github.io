@@ -40,7 +40,7 @@ export const SignInFormExtension = {
   render: ({ trace, element }) => {
     // ---- Config pulled from the trace payload (with sensible defaults) ----
     const payload = trace.payload || {};
-    const heading = payload.heading || 'Core4 & Essentia Onboarding';
+    const heading = payload.heading || 'Immersive Visualization';
     const submitLabel = payload.submitLabel || 'Get Started';
 
     // ---- Container ----
