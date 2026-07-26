@@ -233,26 +233,32 @@ export const HideInputExtension = {
   type: "effect",
   match: ({ trace }) => trace.type === "ext_hide_input" || trace.payload?.name === "ext_hide_input",
   effect: ({ trace }) => {
-    console.log("ðŸ”¹ HideInputExtension triggered", trace);
+    console.log("🔹 HideInputExtension triggered", trace);
 
-    // Get the Voiceflow chat container
     const chatDiv = document.getElementById("voiceflow-chat");
 
     if (chatDiv && chatDiv.shadowRoot) {
-      // Access the shadow root
       const shadowRoot = chatDiv.shadowRoot;
 
-      // Find the input container inside the shadow DOM
+      // Hide the text input container
       const inputContainer = shadowRoot.querySelector(".vfrc-input-container");
-
       if (inputContainer) {
-        inputContainer.style.display = "none"; // Hide input field
-        console.log("âœ… vfrc-input-container hidden inside shadow root");
+        inputContainer.style.display = "none";
+        console.log("✅ vfrc-input-container hidden inside shadow root");
       } else {
-        console.warn("âš ï¸ vfrc-input-container not found inside shadow root");
+        console.warn("⚠️ vfrc-input-container not found inside shadow root");
+      }
+
+      // Hide the voice-mode (waveform) button separately — it's a sibling, not a child
+      const voiceModeButton = shadowRoot.querySelector(".vfrc-chat-input__voice-mode");
+      if (voiceModeButton) {
+        voiceModeButton.style.display = "none";
+        console.log("✅ voice-mode button hidden inside shadow root");
+      } else {
+        console.warn("⚠️ voice-mode button not found inside shadow root");
       }
     } else {
-      console.warn("âš ï¸ voiceflow-chat or shadowRoot not found");
+      console.warn("⚠️ voiceflow-chat or shadowRoot not found");
     }
   }
 };
