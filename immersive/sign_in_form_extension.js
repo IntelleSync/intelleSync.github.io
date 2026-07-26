@@ -268,7 +268,7 @@ export const ShowInputExtension = {
   type: "effect",
   match: ({ trace }) => trace.type === "ext_show_input" || trace.payload?.name === "ext_show_input",
   effect: ({ trace }) => {
-    console.log("ðŸ”¹ ShowInputExtension triggered", trace);
+    console.log("🔹 ShowInputExtension triggered", trace);
 
     // Get the Voiceflow chat container
     const chatDiv = document.getElementById("voiceflow-chat");
@@ -282,12 +282,22 @@ export const ShowInputExtension = {
 
       if (inputContainer) {
         inputContainer.style.display = ""; // Show input field
-        console.log("âœ… vfrc-input-container is now visible again");
+        console.log("✅ vfrc-input-container is now visible again");
       } else {
-        console.warn("âš ï¸ vfrc-input-container not found inside shadow root");
+        console.warn("⚠️ vfrc-input-container not found inside shadow root");
+      }
+
+      // Find the voice-mode button inside the shadow DOM
+      const voiceModeButton = shadowRoot.querySelector(".vfrc-chat-input__voice-mode");
+
+      if (voiceModeButton) {
+        voiceModeButton.style.display = ""; // Show voice-mode button
+        console.log("✅ voice-mode button is now visible again");
+      } else {
+        console.warn("⚠️ voice-mode button not found inside shadow root");
       }
     } else {
-      console.warn("âš ï¸ voiceflow-chat or shadowRoot not found");
+      console.warn("⚠️ voiceflow-chat or shadowRoot not found");
     }
   }
 };
