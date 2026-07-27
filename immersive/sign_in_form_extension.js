@@ -6,10 +6,11 @@
  * the header image (1c815971-15bc-46fb-81c7-e8661706d45d.png
  * excluded per request).
  *
- * On submit, sets three Voiceflow variables:
+ * On submit, sets four Voiceflow variables:
  *   - first_name
  *   - last_name
  *   - email
+ *   - phone
  *
  * SETUP IN VOICEFLOW:
  * 1. Add a "Custom Action" / extension step to your diagram.
@@ -27,7 +28,7 @@
  *      });
  *
  * 4. Downstream in the diagram, reference {first_name}, {last_name},
- *    {email} as normal Voiceflow variables.
+ *    {email}, {phone} as normal Voiceflow variables.
  */
 
 export const SignInFormExtension = {
@@ -166,6 +167,12 @@ export const SignInFormExtension = {
             <div class="core4-error-msg" id="core4-email-error">A valid email is required</div>
           </div>
 
+          <div class="core4-field-group">
+            <label class="core4-label" for="core4-phone">Phone <span class="req">*</span></label>
+            <input class="core4-input" type="tel" id="core4-phone" placeholder="Phone" required />
+            <div class="core4-error-msg" id="core4-phone-error">A valid phone number is required</div>
+          </div>
+
           <button type="submit" class="core4-submit-btn" id="core4-submit">
             <span>${submitLabel}</span>
           </button>
@@ -179,9 +186,12 @@ export const SignInFormExtension = {
     const firstNameInput = wrapper.querySelector('#core4-first-name');
     const lastNameInput = wrapper.querySelector('#core4-last-name');
     const emailInput = wrapper.querySelector('#core4-email');
+    const phoneInput = wrapper.querySelector('#core4-phone');
     const submitBtn = wrapper.querySelector('#core4-submit');
 
     const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    // Accepts digits, spaces, +, -, (), with at least 7 digits overall
+    const isValidPhone = (value) => (value.match(/\d/g) || []).length >= 7;
 
     const setFieldError = (input, errorId, show) => {
       input.classList.toggle('core4-error', show);
@@ -194,6 +204,7 @@ export const SignInFormExtension = {
       const first_name = firstNameInput.value.trim();
       const last_name = lastNameInput.value.trim();
       const email = emailInput.value.trim();
+      const phone = phoneInput.value.trim();
 
       let valid = true;
 
@@ -207,13 +218,17 @@ export const SignInFormExtension = {
       setFieldError(emailInput, 'core4-email-error', !emailValid);
       if (!emailValid) valid = false;
 
+      const phoneValid = !!phone && isValidPhone(phone);
+      setFieldError(phoneInput, 'core4-phone-error', !phoneValid);
+      if (!phoneValid) valid = false;
+
       if (!valid) return;
 
       submitBtn.disabled = true;
       submitBtn.querySelector('span').textContent = 'Submitted';
 
       // Disable the form so it can't be resubmitted
-      [firstNameInput, lastNameInput, emailInput].forEach((el) => (el.disabled = true));
+      [firstNameInput, lastNameInput, emailInput, phoneInput].forEach((el) => (el.disabled = true));
 
       // Send the captured values back into Voiceflow as variables
       window.voiceflow.chat.interact({
@@ -222,6 +237,7 @@ export const SignInFormExtension = {
           first_name,
           last_name,
           email,
+          phone,
         },
       });
     });
