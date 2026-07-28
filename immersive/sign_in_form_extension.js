@@ -6,11 +6,19 @@
  * the header image (1c815971-15bc-46fb-81c7-e8661706d45d.png
  * excluded per request).
  *
- * On submit, sets four Voiceflow variables:
+ * On submit, sets these Voiceflow variables:
  *   - first_name
  *   - last_name
  *   - email
- *   - phone
+ *   - phone (digits only, no leading "+" — the "+" shown in the field
+ *     is just a visual hint, since GHL adds it automatically on its end)
+ *
+ * Delivery method checkboxes (SMS / Email) map to exactly ONE of the
+ * following boolean variables, depending on what's checked:
+ *   - send_sms    (SMS only)
+ *   - send_email  (Email only)
+ *   - send_both   (both SMS and Email)
+ * At least one option must be checked to submit the form.
  *
  * SETUP IN VOICEFLOW:
  * 1. Add a "Custom Action" / extension step to your diagram.
@@ -28,7 +36,9 @@
  *      });
  *
  * 4. Downstream in the diagram, reference {first_name}, {last_name},
- *    {email}, {phone} as normal Voiceflow variables.
+ *    {email}, {phone} as normal Voiceflow variables. Also make sure
+ *    send_sms, send_email, and send_both exist as variables so your
+ *    Code step can assign whichever one comes through in the payload.
  */
 
 export const SignInFormExtension = {
@@ -143,6 +153,40 @@ export const SignInFormExtension = {
           opacity: 0.6;
           cursor: default;
         }
+        .core4-checkbox-question {
+          font-family: 'Inter', sans-serif;
+          font-size: 14px;
+          font-weight: 500;
+          color: #2c3345;
+          margin-bottom: 8px;
+        }
+        .core4-checkbox-row {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 4px;
+        }
+        .core4-checkbox-option {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          border: 1px solid #ACACAC;
+          border-radius: 8px;
+          padding: 8px 14px;
+          cursor: pointer;
+          flex: 1;
+        }
+        .core4-checkbox-option input {
+          width: 16px;
+          height: 16px;
+          accent-color: #101828;
+          cursor: pointer;
+        }
+        .core4-checkbox-option span {
+          font-family: 'Inter', sans-serif;
+          font-size: 13px;
+          font-weight: 500;
+          color: #2c3345;
+        }
       </style>
 
       <div>
@@ -173,6 +217,21 @@ export const SignInFormExtension = {
             <div class="core4-error-msg" id="core4-phone-error">A valid phone number is required</div>
           </div>
 
+          <div class="core4-field-group">
+            <p class="core4-checkbox-question">How would you like your personalized immersive visualization delivered? <span class="req">*</span></p>
+            <div class="core4-checkbox-row">
+              <label class="core4-checkbox-option">
+                <input type="checkbox" id="core4-delivery-sms" />
+                <span>SMS</span>
+              </label>
+              <label class="core4-checkbox-option">
+                <input type="checkbox" id="core4-delivery-email" />
+                <span>Email</span>
+              </label>
+            </div>
+            <div class="core4-error-msg" id="core4-delivery-error">Please select at least one delivery method</div>
+          </div>
+
           <button type="submit" class="core4-submit-btn" id="core4-submit">
             <span>${submitLabel}</span>
           </button>
@@ -187,18 +246,21 @@ export const SignInFormExtension = {
     const lastNameInput = wrapper.querySelector('#core4-last-name');
     const emailInput = wrapper.querySelector('#core4-email');
     const phoneInput = wrapper.querySelector('#core4-phone');
+    const smsCheckbox = wrapper.querySelector('#core4-delivery-sms');
+    const emailCheckbox = wrapper.querySelector('#core4-delivery-email');
     const submitBtn = wrapper.querySelector('#core4-submit');
 
     const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     // Accepts digits, spaces, +, -, (), with at least 7 digits overall
     const isValidPhone = (value) => (value.match(/\d/g) || []).length >= 7;
 
-    // Keep a leading "+" pinned in the phone field as the user types
+    // Keep a leading "+" pinned in the phone field and strip non-digits
     phoneInput.addEventListener('input', () => {
       let value = phoneInput.value;
-      // Strip any "+" that isn't the very first character
-      value = '+' + value.slice(1).replace(/\+/g, '');
-      if (!value.startsWith('+')) value = '+' + value;
+      // Strip the leading "+" temporarily, remove all non-digit characters
+      // from the rest, then re-attach a single leading "+"
+      const digitsOnly = value.slice(1).replace(/\D/g, '');
+      value = '+' + digitsOnly;
       phoneInput.value = value;
     });
 
@@ -224,7 +286,9 @@ export const SignInFormExtension = {
       const first_name = firstNameInput.value.trim();
       const last_name = lastNameInput.value.trim();
       const email = emailInput.value.trim();
-      const phone = phoneInput.value.trim();
+      // The "+" shown in the field is just a visual hint for the user —
+      // GHL adds the "+" on its end, so we strip it before sending.
+      const phone = phoneInput.value.replace(/^\+/, '').trim();
 
       let valid = true;
 
@@ -242,13 +306,31 @@ export const SignInFormExtension = {
       setFieldError(phoneInput, 'core4-phone-error', !phoneValid);
       if (!phoneValid) valid = false;
 
+      const smsChecked = smsCheckbox.checked;
+      const emailChecked = emailCheckbox.checked;
+      const deliverySelected = smsChecked || emailChecked;
+      wrapper.querySelector('#core4-delivery-error').classList.toggle('show', !deliverySelected);
+      if (!deliverySelected) valid = false;
+
       if (!valid) return;
+
+      // Map the checkbox combination to a single delivery-method flag
+      const deliveryPayload = {};
+      if (smsChecked && emailChecked) {
+        deliveryPayload.send_both = true;
+      } else if (smsChecked) {
+        deliveryPayload.send_sms = true;
+      } else if (emailChecked) {
+        deliveryPayload.send_email = true;
+      }
 
       submitBtn.disabled = true;
       submitBtn.querySelector('span').textContent = 'Submitted';
 
       // Disable the form so it can't be resubmitted
-      [firstNameInput, lastNameInput, emailInput, phoneInput].forEach((el) => (el.disabled = true));
+      [firstNameInput, lastNameInput, emailInput, phoneInput, smsCheckbox, emailCheckbox].forEach(
+        (el) => (el.disabled = true)
+      );
 
       // Send the captured values back into Voiceflow as variables
       window.voiceflow.chat.interact({
@@ -258,6 +340,7 @@ export const SignInFormExtension = {
           last_name,
           email,
           phone,
+          ...deliveryPayload,
         },
       });
     });
