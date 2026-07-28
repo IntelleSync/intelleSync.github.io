@@ -169,7 +169,7 @@ export const SignInFormExtension = {
 
           <div class="core4-field-group">
             <label class="core4-label" for="core4-phone">Phone <span class="req">*</span></label>
-            <input class="core4-input" type="tel" id="core4-phone" placeholder="Mobile (inc. dial code)" required />
+            <input class="core4-input" type="tel" id="core4-phone" placeholder="Phone" value="+" required />
             <div class="core4-error-msg" id="core4-phone-error">A valid phone number is required</div>
           </div>
 
@@ -192,6 +192,26 @@ export const SignInFormExtension = {
     const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     // Accepts digits, spaces, +, -, (), with at least 7 digits overall
     const isValidPhone = (value) => (value.match(/\d/g) || []).length >= 7;
+
+    // Keep a leading "+" pinned in the phone field as the user types
+    phoneInput.addEventListener('input', () => {
+      let value = phoneInput.value;
+      // Strip any "+" that isn't the very first character
+      value = '+' + value.slice(1).replace(/\+/g, '');
+      if (!value.startsWith('+')) value = '+' + value;
+      phoneInput.value = value;
+    });
+
+    // Prevent the cursor/selection from deleting past the leading "+"
+    phoneInput.addEventListener('keydown', (e) => {
+      if (
+        (e.key === 'Backspace' || e.key === 'Delete') &&
+        phoneInput.selectionStart <= 1 &&
+        phoneInput.selectionEnd <= 1
+      ) {
+        e.preventDefault();
+      }
+    });
 
     const setFieldError = (input, errorId, show) => {
       input.classList.toggle('core4-error', show);
