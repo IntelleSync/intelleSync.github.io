@@ -169,7 +169,7 @@ export const SignInFormExtension = {
 
           <div class="core4-field-group">
             <label class="core4-label" for="core4-phone">Phone <span class="req">*</span></label>
-            <input class="core4-input" type="tel" id="core4-phone" placeholder="Phone" required />
+            <input class="core4-input" type="tel" id="core4-phone" placeholder="Mobile inc dial code e.g +123" required />
             <div class="core4-error-msg" id="core4-phone-error">A valid phone number is required</div>
           </div>
 
