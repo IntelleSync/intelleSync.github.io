@@ -1,46 +1,239 @@
 /**
- * Voiceflow Custom Extension: Core4 & Essentia Onboarding Form
+ * Voiceflow Custom Extensions: Core4 & Essentia Onboarding Flow
  * --------------------------------------------------------------
  * Visually matches the GHL "Core4 & Essentia Onboarding" form
- * (white card, Inter font, dark rounded submit button), minus
- * the header image (1c815971-15bc-46fb-81c7-e8661706d45d.png
- * excluded per request).
+ * (white card, Inter font, dark rounded submit button).
  *
- * On submit, sets these Voiceflow variables:
- *   - first_name
- *   - last_name
- *   - email
- *   - phone (digits only, no leading "+" — the "+" shown in the field
- *     is just a visual hint, since GHL adds it automatically on its end)
+ * This flow is split into TWO extension screens so the GHL contact
+ * lookup by email happens server-side in the Voiceflow diagram
+ * (via your existing API/Integration step), never in the browser.
+ * That keeps your GHL API key out of client-side code entirely.
  *
- * Delivery method checkboxes (SMS / Email) map to exactly ONE of the
- * following boolean variables, depending on what's checked:
- *   - send_sms    (SMS only)
- *   - send_email  (Email only)
- *   - send_both   (both SMS and Email)
- * At least one option must be checked to submit the form.
+ * SCREEN 1 — SignInFormExtension (trigger: "ext_signInForm")
+ *   Collects: First Name, Last Name, Email
+ *   On submit -> sets: first_name, last_name, email
+ *   Your diagram then runs the GHL contact-search-by-email step and
+ *   should set a `found_phone` variable:
+ *     - full E.164 number (e.g. "+15205040001") if a match with a
+ *       phone on file was found
+ *     - empty string / null if no match or no phone on file
+ *
+ * SCREEN 2 — PhoneConfirmExtension (trigger: "ext_phoneConfirm")
+ *   Pass `found_phone` in via the trace payload, e.g.:
+ *     { "name": "ext_phoneConfirm", "found_phone": "{{found_phone}}" }
+ *
+ *   Behavior:
+ *     - If found_phone is present: asks "We found a number ending in
+ *       ****1234 — use this number?" Yes/No.
+ *         - Yes -> skips straight to delivery-method checkboxes
+ *         - No  -> reveals the "+"-prefixed phone input, then checkboxes
+ *     - If found_phone is empty: shows the phone input directly, then
+ *       checkboxes
+ *
+ *   On final submit -> sets: phone (digits only, no leading "+" —
+ *   GHL adds the "+" automatically on its end), and exactly ONE of:
+ *     - send_sms    (SMS only)
+ *     - send_email  (Email only)
+ *     - send_both   (both SMS and Email)
  *
  * SETUP IN VOICEFLOW:
- * 1. Add a "Custom Action" / extension step to your diagram.
- * 2. Set the step's trace payload `name` to "ext_signInForm"
- *    (or update the `match` function below to fit your diagram).
- * 3. Register this extension in your Voiceflow web/react chat widget:
+ * 1. Add two "Custom Action" steps to your diagram, one after the
+ *    other (with your GHL search step in between), with trace
+ *    payload `name` set to "ext_signInForm" and "ext_phoneConfirm"
+ *    respectively.
+ * 2. Register both extensions in your Voiceflow web/react chat widget:
  *
- *      import { SignInFormExtension } from './sign-in-form-extension.js';
+ *      import { SignInFormExtension, PhoneConfirmExtension } from './sign-in-form-extension.js';
  *
  *      voiceflow.chat.load({
  *        // ...
  *        render: {
- *          extensions: [SignInFormExtension],
+ *          extensions: [SignInFormExtension, PhoneConfirmExtension],
  *        },
  *      });
  *
- * 4. Downstream in the diagram, reference {first_name}, {last_name},
- *    {email}, {phone} as normal Voiceflow variables. Also make sure
- *    send_sms, send_email, and send_both exist as variables so your
- *    Code step can assign whichever one comes through in the payload.
+ * 3. Make sure first_name, last_name, email, phone, found_phone,
+ *    send_sms, send_email, and send_both all exist as variables in
+ *    your Voiceflow project so your Code steps can assign to them.
  */
 
+// Shared styling used by both screens, kept as a single string so the
+// two extensions look identical without duplicating the CSS by hand.
+const CORE4_STYLES = `
+  <style>
+    .core4-form-wrap {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      max-width: 480px;
+      width: 100%;
+      margin: 0 auto;
+      background-color: #FFFFFF;
+      border: 1px solid #FFFFFF;
+      border-radius: 8px;
+      box-shadow: 0px 4px 4px 0px rgba(87, 100, 126, 0.21);
+      padding: 24px 24px 20px 24px;
+      box-sizing: border-box;
+    }
+    .core4-form-wrap * {
+      box-sizing: border-box;
+    }
+    .core4-form-heading {
+      text-align: center;
+      font-family: 'Roboto', sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      color: #000000;
+      margin: 0 0 16px 0;
+    }
+    .core4-field-group {
+      margin-bottom: 14px;
+    }
+    .core4-label {
+      display: block;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: #2c3345;
+      margin-bottom: 6px;
+    }
+    .core4-label .req {
+      color: #2c3345;
+    }
+    .core4-input {
+      width: 100%;
+      background-color: #FFFFFF;
+      color: #2c3345;
+      border: 1px solid #ACACAC;
+      border-radius: 5px;
+      padding: 8px 15px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 300;
+      outline: none;
+    }
+    .core4-input::placeholder {
+      color: #8c8c8c;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 300;
+    }
+    .core4-input:focus {
+      border-color: #188bf6;
+    }
+    .core4-input.core4-error {
+      border-color: #e25950;
+    }
+    .core4-error-msg {
+      color: #e25950;
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+    }
+    .core4-error-msg.show {
+      display: block;
+    }
+    .core4-submit-btn {
+      width: 100%;
+      background: #101828;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      margin-top: 8px;
+      box-shadow: 0px 1px 2px 0px rgba(0,0,0,0.08);
+      cursor: pointer;
+    }
+    .core4-submit-btn span {
+      color: #FFFFFF;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+    }
+    .core4-submit-btn:hover {
+      opacity: 0.92;
+    }
+    .core4-submit-btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .core4-checkbox-question {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: #2c3345;
+      margin: 0 0 8px 0;
+    }
+    .core4-checkbox-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .core4-checkbox-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #ACACAC;
+      border-radius: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+      flex: 1;
+    }
+    .core4-checkbox-option input {
+      width: 16px;
+      height: 16px;
+      accent-color: #101828;
+      cursor: pointer;
+    }
+    .core4-checkbox-option span {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: #2c3345;
+    }
+    .core4-confirm-text {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: #2c3345;
+      margin: 0 0 12px 0;
+    }
+    .core4-confirm-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .core4-confirm-btn {
+      flex: 1;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .core4-confirm-btn.yes {
+      background: #101828;
+      border: none;
+      color: #FFFFFF;
+    }
+    .core4-confirm-btn.yes:hover {
+      opacity: 0.92;
+    }
+    .core4-confirm-btn.no {
+      background: #FFFFFF;
+      border: 1px solid #ACACAC;
+      color: #2c3345;
+    }
+    .core4-confirm-btn.no:hover {
+      background: #f5f5f5;
+    }
+    .core4-hidden {
+      display: none !important;
+    }
+  </style>
+`;
+
+// ---------------------------------------------------------------------
+// SCREEN 1: First Name / Last Name / Email
+// ---------------------------------------------------------------------
 export const SignInFormExtension = {
   name: 'SignInForm',
   type: 'response',
@@ -49,146 +242,15 @@ export const SignInFormExtension = {
     trace.payload?.name === 'ext_signInForm',
 
   render: ({ trace, element }) => {
-    // ---- Config pulled from the trace payload (with sensible defaults) ----
     const payload = trace.payload || {};
     const heading = payload.heading || 'Immersive Visualization';
     const submitLabel = payload.submitLabel || 'Get Started';
 
-    // ---- Container ----
     const wrapper = document.createElement('div');
     wrapper.className = 'core4-form-wrap';
 
     wrapper.innerHTML = `
-      <style>
-        .core4-form-wrap {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-          max-width: 480px;
-          width: 100%;
-          margin: 0 auto;
-          background-color: #FFFFFF;
-          border: 1px solid #FFFFFF;
-          border-radius: 8px;
-          box-shadow: 0px 4px 4px 0px rgba(87, 100, 126, 0.21);
-          padding: 24px 24px 20px 24px;
-          box-sizing: border-box;
-        }
-        .core4-form-wrap * {
-          box-sizing: border-box;
-        }
-        .core4-form-heading {
-          text-align: center;
-          font-family: 'Roboto', sans-serif;
-          font-weight: 700;
-          font-size: 18px;
-          color: #000000;
-          margin: 0 0 16px 0;
-        }
-        .core4-field-group {
-          margin-bottom: 14px;
-        }
-        .core4-label {
-          display: block;
-          font-family: 'Inter', sans-serif;
-          font-size: 14px;
-          font-weight: 500;
-          color: #2c3345;
-          margin-bottom: 6px;
-        }
-        .core4-label .req {
-          color: #2c3345;
-        }
-        .core4-input {
-          width: 100%;
-          background-color: #FFFFFF;
-          color: #2c3345;
-          border: 1px solid #ACACAC;
-          border-radius: 5px;
-          padding: 8px 15px;
-          font-family: 'Inter', sans-serif;
-          font-size: 12px;
-          font-weight: 300;
-          outline: none;
-        }
-        .core4-input::placeholder {
-          color: #8c8c8c;
-          font-family: 'Inter', sans-serif;
-          font-size: 12px;
-          font-weight: 300;
-        }
-        .core4-input:focus {
-          border-color: #188bf6;
-        }
-        .core4-input.core4-error {
-          border-color: #e25950;
-        }
-        .core4-error-msg {
-          color: #e25950;
-          font-size: 12px;
-          margin-top: 4px;
-          display: none;
-        }
-        .core4-error-msg.show {
-          display: block;
-        }
-        .core4-submit-btn {
-          width: 100%;
-          background: #101828;
-          border: none;
-          border-radius: 8px;
-          padding: 12px 20px;
-          margin-top: 8px;
-          box-shadow: 0px 1px 2px 0px rgba(0,0,0,0.08);
-          cursor: pointer;
-        }
-        .core4-submit-btn span {
-          color: #FFFFFF;
-          font-size: 16px;
-          font-weight: 600;
-          font-family: 'Inter', sans-serif;
-        }
-        .core4-submit-btn:hover {
-          opacity: 0.92;
-        }
-        .core4-submit-btn:disabled {
-          opacity: 0.6;
-          cursor: default;
-        }
-        .core4-checkbox-question {
-          font-family: 'Inter', sans-serif;
-          font-size: 14px;
-          font-weight: 500;
-          color: #2c3345;
-          margin-bottom: 8px;
-        }
-        .core4-checkbox-row {
-          display: flex;
-          gap: 10px;
-          margin-bottom: 4px;
-        }
-        .core4-checkbox-option {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          border: 1px solid #ACACAC;
-          border-radius: 8px;
-          padding: 8px 14px;
-          cursor: pointer;
-          flex: 1;
-        }
-        .core4-checkbox-option input {
-          width: 16px;
-          height: 16px;
-          accent-color: #101828;
-          cursor: pointer;
-        }
-        .core4-checkbox-option span {
-          font-family: 'Inter', sans-serif;
-          font-size: 13px;
-          font-weight: 500;
-          color: #2c3345;
-        }
-      </style>
-
+      ${CORE4_STYLES}
       <div>
         <p class="core4-form-heading">${heading}</p>
 
@@ -211,13 +273,116 @@ export const SignInFormExtension = {
             <div class="core4-error-msg" id="core4-email-error">A valid email is required</div>
           </div>
 
-          <div class="core4-field-group">
+          <button type="submit" class="core4-submit-btn" id="core4-submit">
+            <span>${submitLabel}</span>
+          </button>
+        </form>
+      </div>
+    `;
+
+    element.appendChild(wrapper);
+
+    const form = wrapper.querySelector('#core4-form');
+    const firstNameInput = wrapper.querySelector('#core4-first-name');
+    const lastNameInput = wrapper.querySelector('#core4-last-name');
+    const emailInput = wrapper.querySelector('#core4-email');
+    const submitBtn = wrapper.querySelector('#core4-submit');
+
+    const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+    const setFieldError = (input, errorId, show) => {
+      input.classList.toggle('core4-error', show);
+      wrapper.querySelector(`#${errorId}`).classList.toggle('show', show);
+    };
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const first_name = firstNameInput.value.trim();
+      const last_name = lastNameInput.value.trim();
+      const email = emailInput.value.trim();
+
+      let valid = true;
+
+      setFieldError(firstNameInput, 'core4-first-name-error', !first_name);
+      if (!first_name) valid = false;
+
+      setFieldError(lastNameInput, 'core4-last-name-error', !last_name);
+      if (!last_name) valid = false;
+
+      const emailValid = !!email && isValidEmail(email);
+      setFieldError(emailInput, 'core4-email-error', !emailValid);
+      if (!emailValid) valid = false;
+
+      if (!valid) return;
+
+      submitBtn.disabled = true;
+      submitBtn.querySelector('span').textContent = 'Submitted';
+
+      [firstNameInput, lastNameInput, emailInput].forEach((el) => (el.disabled = true));
+
+      window.voiceflow.chat.interact({
+        type: 'complete',
+        payload: {
+          first_name,
+          last_name,
+          email,
+        },
+      });
+    });
+  },
+};
+
+// ---------------------------------------------------------------------
+// SCREEN 2: Phone confirmation/entry + delivery method checkboxes
+// ---------------------------------------------------------------------
+export const PhoneConfirmExtension = {
+  name: 'PhoneConfirm',
+  type: 'response',
+  match: ({ trace }) =>
+    trace.type === 'ext_phoneConfirm' ||
+    trace.payload?.name === 'ext_phoneConfirm',
+
+  render: ({ trace, element }) => {
+    const payload = trace.payload || {};
+    const heading = payload.heading || 'Almost done!';
+    const submitLabel = payload.submitLabel || 'Get Started';
+
+    // The full number found in GHL for this contact (E.164, e.g. "+15205040001"),
+    // or empty/null if no match or no phone on file.
+    const foundPhoneRaw = (payload.found_phone || '').toString().trim();
+    const hasFoundPhone = foundPhoneRaw.length >= 4;
+    const digitsOnlyFound = foundPhoneRaw.replace(/\D/g, '');
+    const last4 = digitsOnlyFound.slice(-4);
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'core4-form-wrap';
+
+    wrapper.innerHTML = `
+      ${CORE4_STYLES}
+      <div>
+        <p class="core4-form-heading">${heading}</p>
+
+        <form id="core4-form" novalidate>
+
+          <!-- Shown only when a phone number was found in GHL -->
+          <div class="core4-field-group ${hasFoundPhone ? '' : 'core4-hidden'}" id="core4-confirm-group">
+            <p class="core4-confirm-text">We found a number ending in •••• ${last4} on file. Use this number?</p>
+            <div class="core4-confirm-row">
+              <button type="button" class="core4-confirm-btn yes" id="core4-confirm-yes">Yes, use it</button>
+              <button type="button" class="core4-confirm-btn no" id="core4-confirm-no">No, enter a different number</button>
+            </div>
+          </div>
+
+          <!-- Shown when no phone was found, or user chose "No" above -->
+          <div class="core4-field-group ${hasFoundPhone ? 'core4-hidden' : ''}" id="core4-phone-group">
             <label class="core4-label" for="core4-phone">Phone <span class="req">*</span></label>
-            <input class="core4-input" type="tel" id="core4-phone" placeholder="Phone" value="+" required />
+            <input class="core4-input" type="tel" id="core4-phone" placeholder="Phone" value="+" />
             <div class="core4-error-msg" id="core4-phone-error">A valid phone number is required</div>
           </div>
 
-          <div class="core4-field-group">
+          <!-- Delivery method: hidden until the phone step is resolved -->
+          <div class="core4-field-group core4-hidden" id="core4-delivery-group">
             <p class="core4-checkbox-question">How would you like your personalized immersive visualization delivered? <span class="req">*</span></p>
             <div class="core4-checkbox-row">
               <label class="core4-checkbox-option">
@@ -232,7 +397,7 @@ export const SignInFormExtension = {
             <div class="core4-error-msg" id="core4-delivery-error">Please select at least one delivery method</div>
           </div>
 
-          <button type="submit" class="core4-submit-btn" id="core4-submit">
+          <button type="submit" class="core4-submit-btn core4-hidden" id="core4-submit">
             <span>${submitLabel}</span>
           </button>
         </form>
@@ -242,29 +407,53 @@ export const SignInFormExtension = {
     element.appendChild(wrapper);
 
     const form = wrapper.querySelector('#core4-form');
-    const firstNameInput = wrapper.querySelector('#core4-first-name');
-    const lastNameInput = wrapper.querySelector('#core4-last-name');
-    const emailInput = wrapper.querySelector('#core4-email');
+    const confirmGroup = wrapper.querySelector('#core4-confirm-group');
+    const confirmYesBtn = wrapper.querySelector('#core4-confirm-yes');
+    const confirmNoBtn = wrapper.querySelector('#core4-confirm-no');
+    const phoneGroup = wrapper.querySelector('#core4-phone-group');
     const phoneInput = wrapper.querySelector('#core4-phone');
+    const deliveryGroup = wrapper.querySelector('#core4-delivery-group');
     const smsCheckbox = wrapper.querySelector('#core4-delivery-sms');
     const emailCheckbox = wrapper.querySelector('#core4-delivery-email');
     const submitBtn = wrapper.querySelector('#core4-submit');
 
-    const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-    // Accepts digits, spaces, +, -, (), with at least 7 digits overall
+    // Tracks which number will actually be submitted: either the
+    // confirmed GHL number, or whatever the user types in the phone field.
+    let chosenPhoneDigits = hasFoundPhone ? digitsOnlyFound : null;
+
     const isValidPhone = (value) => (value.match(/\d/g) || []).length >= 7;
+
+    const revealDeliveryStep = () => {
+      deliveryGroup.classList.remove('core4-hidden');
+      submitBtn.classList.remove('core4-hidden');
+    };
+
+    if (hasFoundPhone) {
+      // Phone already confirmed by default until the user says otherwise
+      confirmYesBtn.addEventListener('click', () => {
+        chosenPhoneDigits = digitsOnlyFound;
+        confirmGroup.classList.add('core4-hidden');
+        phoneGroup.classList.add('core4-hidden');
+        revealDeliveryStep();
+      });
+
+      confirmNoBtn.addEventListener('click', () => {
+        chosenPhoneDigits = null;
+        confirmGroup.classList.add('core4-hidden');
+        phoneGroup.classList.remove('core4-hidden');
+        revealDeliveryStep();
+      });
+    } else {
+      // No number on file — go straight to manual entry + delivery step
+      revealDeliveryStep();
+    }
 
     // Keep a leading "+" pinned in the phone field and strip non-digits
     phoneInput.addEventListener('input', () => {
-      let value = phoneInput.value;
-      // Strip the leading "+" temporarily, remove all non-digit characters
-      // from the rest, then re-attach a single leading "+"
-      const digitsOnly = value.slice(1).replace(/\D/g, '');
-      value = '+' + digitsOnly;
-      phoneInput.value = value;
+      const digitsOnly = phoneInput.value.slice(1).replace(/\D/g, '');
+      phoneInput.value = '+' + digitsOnly;
     });
 
-    // Prevent the cursor/selection from deleting past the leading "+"
     phoneInput.addEventListener('keydown', (e) => {
       if (
         (e.key === 'Backspace' || e.key === 'Delete') &&
@@ -283,28 +472,22 @@ export const SignInFormExtension = {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
 
-      const first_name = firstNameInput.value.trim();
-      const last_name = lastNameInput.value.trim();
-      const email = emailInput.value.trim();
-      // The "+" shown in the field is just a visual hint for the user —
-      // GHL adds the "+" on its end, so we strip it before sending.
-      const phone = phoneInput.value.replace(/^\+/, '').trim();
-
       let valid = true;
 
-      setFieldError(firstNameInput, 'core4-first-name-error', !first_name);
-      if (!first_name) valid = false;
-
-      setFieldError(lastNameInput, 'core4-last-name-error', !last_name);
-      if (!last_name) valid = false;
-
-      const emailValid = !!email && isValidEmail(email);
-      setFieldError(emailInput, 'core4-email-error', !emailValid);
-      if (!emailValid) valid = false;
-
-      const phoneValid = !!phone && isValidPhone(phone);
-      setFieldError(phoneInput, 'core4-phone-error', !phoneValid);
-      if (!phoneValid) valid = false;
+      // If the phone field is visible (no confirmed number yet), validate it
+      const phoneFieldVisible = !phoneGroup.classList.contains('core4-hidden');
+      if (phoneFieldVisible) {
+        // The "+" shown in the field is just a visual hint — GHL adds
+        // the "+" automatically on its end, so we strip it before sending.
+        const enteredPhone = phoneInput.value.replace(/^\+/, '').trim();
+        const phoneValid = !!enteredPhone && isValidPhone(enteredPhone);
+        setFieldError(phoneInput, 'core4-phone-error', !phoneValid);
+        if (!phoneValid) {
+          valid = false;
+        } else {
+          chosenPhoneDigits = enteredPhone;
+        }
+      }
 
       const smsChecked = smsCheckbox.checked;
       const emailChecked = emailCheckbox.checked;
@@ -312,9 +495,10 @@ export const SignInFormExtension = {
       wrapper.querySelector('#core4-delivery-error').classList.toggle('show', !deliverySelected);
       if (!deliverySelected) valid = false;
 
+      if (!chosenPhoneDigits) valid = false;
+
       if (!valid) return;
 
-      // Map the checkbox combination to a single delivery-method flag
       const deliveryPayload = {};
       if (smsChecked && emailChecked) {
         deliveryPayload.send_both = true;
@@ -327,19 +511,14 @@ export const SignInFormExtension = {
       submitBtn.disabled = true;
       submitBtn.querySelector('span').textContent = 'Submitted';
 
-      // Disable the form so it can't be resubmitted
-      [firstNameInput, lastNameInput, emailInput, phoneInput, smsCheckbox, emailCheckbox].forEach(
-        (el) => (el.disabled = true)
-      );
+      [phoneInput, smsCheckbox, emailCheckbox, confirmYesBtn, confirmNoBtn].forEach((el) => {
+        if (el) el.disabled = true;
+      });
 
-      // Send the captured values back into Voiceflow as variables
       window.voiceflow.chat.interact({
         type: 'complete',
         payload: {
-          first_name,
-          last_name,
-          email,
-          phone,
+          phone: chosenPhoneDigits,
           ...deliveryPayload,
         },
       });
