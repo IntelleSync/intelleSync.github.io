@@ -66,6 +66,17 @@
 // two extensions look identical without duplicating the CSS by hand.
 const CORE4_STYLES = `
   <style>
+    @keyframes core4FadeInUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes core4PopIn {
+      from { opacity: 0; transform: scale(0.6); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes core4Draw {
+      to { stroke-dashoffset: 0; }
+    }
     .core4-form-wrap {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       max-width: 480px;
@@ -77,6 +88,7 @@ const CORE4_STYLES = `
       box-shadow: 0px 4px 4px 0px rgba(87, 100, 126, 0.21);
       padding: 24px 24px 20px 24px;
       box-sizing: border-box;
+      animation: core4FadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
     .core4-form-wrap * {
       box-sizing: border-box;
@@ -114,6 +126,7 @@ const CORE4_STYLES = `
       font-size: 12px;
       font-weight: 300;
       outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
     .core4-input::placeholder {
       color: #8c8c8c;
@@ -123,6 +136,7 @@ const CORE4_STYLES = `
     }
     .core4-input:focus {
       border-color: #188bf6;
+      box-shadow: 0 0 0 3px rgba(24, 139, 246, 0.15);
     }
     .core4-input.core4-error {
       border-color: #e25950;
@@ -131,10 +145,15 @@ const CORE4_STYLES = `
       color: #e25950;
       font-size: 12px;
       margin-top: 4px;
-      display: none;
+      display: block;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease, opacity 0.25s ease;
     }
     .core4-error-msg.show {
-      display: block;
+      max-height: 40px;
+      opacity: 1;
     }
     .core4-submit-btn {
       width: 100%;
@@ -145,6 +164,7 @@ const CORE4_STYLES = `
       margin-top: 8px;
       box-shadow: 0px 1px 2px 0px rgba(0,0,0,0.08);
       cursor: pointer;
+      transition: opacity 0.15s ease, transform 0.15s ease;
     }
     .core4-submit-btn span {
       color: #FFFFFF;
@@ -155,9 +175,28 @@ const CORE4_STYLES = `
     .core4-submit-btn:hover {
       opacity: 0.92;
     }
+    .core4-submit-btn:active {
+      transform: scale(0.97);
+    }
     .core4-submit-btn:disabled {
       opacity: 0.6;
       cursor: default;
+      transform: none;
+    }
+    .core4-submitted-content {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .core4-check-icon {
+      animation: core4PopIn 0.3s ease forwards 0.05s;
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    .core4-check-path {
+      stroke-dasharray: 20;
+      stroke-dashoffset: 20;
+      animation: core4Draw 0.35s ease forwards 0.2s;
     }
     .core4-checkbox-question {
       font-family: 'Inter', sans-serif;
@@ -180,6 +219,14 @@ const CORE4_STYLES = `
       padding: 8px 14px;
       cursor: pointer;
       flex: 1;
+      transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.1s ease;
+    }
+    .core4-checkbox-option:active {
+      transform: scale(0.98);
+    }
+    .core4-checkbox-option.selected {
+      border-color: #188bf6;
+      background-color: rgba(24, 139, 246, 0.06);
     }
     .core4-checkbox-option input {
       width: 16px;
@@ -213,6 +260,10 @@ const CORE4_STYLES = `
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
+      transition: opacity 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+    }
+    .core4-confirm-btn:active {
+      transform: scale(0.97);
     }
     .core4-confirm-btn.yes {
       background: #101828;
@@ -230,11 +281,43 @@ const CORE4_STYLES = `
     .core4-confirm-btn.no:hover {
       background: #f5f5f5;
     }
+    /* Sections that slide/fade in and out as the form progresses */
+    .core4-section {
+      transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                  opacity 0.3s ease,
+                  transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                  margin-bottom 0.4s ease;
+      max-height: 500px;
+      opacity: 1;
+      transform: translateY(0);
+      overflow: hidden;
+    }
+    .core4-section.core4-collapsed {
+      max-height: 0 !important;
+      opacity: 0;
+      transform: translateY(-6px);
+      margin-bottom: 0 !important;
+      pointer-events: none;
+    }
     .core4-hidden {
       display: none !important;
     }
   </style>
 `;
+
+// Shared helper: swaps a submit button's contents to a "Submitted" label
+// with an animated checkmark, used by both screens.
+const showSubmittedState = (button) => {
+  button.innerHTML = `
+    <span class="core4-submitted-content">
+      <span>Submitted</span>
+      <svg class="core4-check-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" stroke="#FFFFFF" stroke-width="1.5" opacity="0.9"/>
+        <path class="core4-check-path" d="M7.5 12.5L10.2 15.2L16.5 8.5" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+  `;
+};
 
 // ---------------------------------------------------------------------
 // SCREEN 1: First Name / Last Name / Email
@@ -322,7 +405,7 @@ export const SignInFormExtension = {
       if (!valid) return;
 
       submitBtn.disabled = true;
-      submitBtn.querySelector('span').textContent = 'Submitted';
+      showSubmittedState(submitBtn);
 
       [firstNameInput, lastNameInput, emailInput].forEach((el) => (el.disabled = true));
 
@@ -371,14 +454,14 @@ export const PhoneConfirmExtension = {
         <form id="core4-form" novalidate>
 
           <!-- Step 1: delivery method, always shown first -->
-          <div class="core4-field-group" id="core4-delivery-group">
+          <div class="core4-field-group core4-section" id="core4-delivery-group">
             <p class="core4-checkbox-question">How would you like your personalized immersive visualization delivered? <span class="req">*</span></p>
             <div class="core4-checkbox-row">
-              <label class="core4-checkbox-option">
+              <label class="core4-checkbox-option" id="core4-delivery-sms-label">
                 <input type="checkbox" id="core4-delivery-sms" />
                 <span>SMS</span>
               </label>
-              <label class="core4-checkbox-option">
+              <label class="core4-checkbox-option" id="core4-delivery-email-label">
                 <input type="checkbox" id="core4-delivery-email" />
                 <span>Email</span>
               </label>
@@ -390,7 +473,7 @@ export const PhoneConfirmExtension = {
           </div>
 
           <!-- Step 2a: shown only if SMS is selected AND a phone number was found in GHL -->
-          <div class="core4-field-group core4-hidden" id="core4-confirm-group">
+          <div class="core4-field-group core4-section core4-collapsed" id="core4-confirm-group">
             <p class="core4-confirm-text">We found a number ending in •••• ${last4} on file. Use this number?</p>
             <div class="core4-confirm-row">
               <button type="button" class="core4-confirm-btn yes" id="core4-confirm-yes">Yes, use it</button>
@@ -399,13 +482,13 @@ export const PhoneConfirmExtension = {
           </div>
 
           <!-- Step 2b: shown only if SMS is selected AND no phone was found (or user chose "No" above) -->
-          <div class="core4-field-group core4-hidden" id="core4-phone-group">
+          <div class="core4-field-group core4-section core4-collapsed" id="core4-phone-group">
             <label class="core4-label" for="core4-phone">Phone <span class="req">*</span></label>
             <input class="core4-input" type="tel" id="core4-phone" placeholder="Phone" value="+" />
             <div class="core4-error-msg" id="core4-phone-error">A valid phone number is required</div>
           </div>
 
-          <button type="submit" class="core4-submit-btn core4-hidden" id="core4-submit">
+          <button type="submit" class="core4-submit-btn core4-section core4-collapsed" id="core4-submit">
             <span>${submitLabel}</span>
           </button>
         </form>
@@ -418,6 +501,8 @@ export const PhoneConfirmExtension = {
     const deliveryGroup = wrapper.querySelector('#core4-delivery-group');
     const smsCheckbox = wrapper.querySelector('#core4-delivery-sms');
     const emailCheckbox = wrapper.querySelector('#core4-delivery-email');
+    const smsLabel = wrapper.querySelector('#core4-delivery-sms-label');
+    const emailLabel = wrapper.querySelector('#core4-delivery-email-label');
     const continueBtn = wrapper.querySelector('#core4-continue-btn');
     const confirmGroup = wrapper.querySelector('#core4-confirm-group');
     const confirmYesBtn = wrapper.querySelector('#core4-confirm-yes');
@@ -434,8 +519,16 @@ export const PhoneConfirmExtension = {
     const isValidPhone = (value) => (value.match(/\d/g) || []).length >= 7;
 
     const revealSubmitStep = () => {
-      submitBtn.classList.remove('core4-hidden');
+      submitBtn.classList.remove('core4-collapsed');
     };
+
+    // Highlight a checkbox option's container when checked
+    smsCheckbox.addEventListener('change', () => {
+      smsLabel.classList.toggle('selected', smsCheckbox.checked);
+    });
+    emailCheckbox.addEventListener('change', () => {
+      emailLabel.classList.toggle('selected', emailCheckbox.checked);
+    });
 
     // Step 1 -> Step 2: decide whether the phone step is needed at all
     continueBtn.addEventListener('click', () => {
@@ -448,7 +541,7 @@ export const PhoneConfirmExtension = {
       smsRequired = smsChecked;
 
       // Lock in the delivery choice
-      deliveryGroup.classList.add('core4-hidden');
+      deliveryGroup.classList.add('core4-collapsed');
       smsCheckbox.disabled = true;
       emailCheckbox.disabled = true;
 
@@ -461,9 +554,9 @@ export const PhoneConfirmExtension = {
 
       // SMS selected — show the appropriate phone step
       if (hasFoundPhone) {
-        confirmGroup.classList.remove('core4-hidden');
+        confirmGroup.classList.remove('core4-collapsed');
       } else {
-        phoneGroup.classList.remove('core4-hidden');
+        phoneGroup.classList.remove('core4-collapsed');
         revealSubmitStep();
       }
     });
@@ -471,15 +564,15 @@ export const PhoneConfirmExtension = {
     if (hasFoundPhone) {
       confirmYesBtn.addEventListener('click', () => {
         chosenPhoneDigits = digitsOnlyFound;
-        confirmGroup.classList.add('core4-hidden');
-        phoneGroup.classList.add('core4-hidden');
+        confirmGroup.classList.add('core4-collapsed');
+        phoneGroup.classList.add('core4-collapsed');
         revealSubmitStep();
       });
 
       confirmNoBtn.addEventListener('click', () => {
         chosenPhoneDigits = null;
-        confirmGroup.classList.add('core4-hidden');
-        phoneGroup.classList.remove('core4-hidden');
+        confirmGroup.classList.add('core4-collapsed');
+        phoneGroup.classList.remove('core4-collapsed');
         revealSubmitStep();
       });
     }
@@ -511,7 +604,7 @@ export const PhoneConfirmExtension = {
       let valid = true;
 
       // If the phone field is visible (SMS chosen, no confirmed number yet), validate it
-      const phoneFieldVisible = !phoneGroup.classList.contains('core4-hidden');
+      const phoneFieldVisible = !phoneGroup.classList.contains('core4-collapsed');
       if (smsRequired && phoneFieldVisible) {
         // The "+" shown in the field is just a visual hint — GHL adds
         // the "+" automatically on its end, so we strip it before sending.
@@ -539,7 +632,7 @@ export const PhoneConfirmExtension = {
       }
 
       submitBtn.disabled = true;
-      submitBtn.querySelector('span').textContent = 'Submitted';
+      showSubmittedState(submitBtn);
 
       [phoneInput, confirmYesBtn, confirmNoBtn].forEach((el) => {
         if (el) el.disabled = true;
