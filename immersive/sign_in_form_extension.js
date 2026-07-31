@@ -23,15 +23,20 @@
  *     { "name": "ext_phoneConfirm", "found_phone": "{{found_phone}}" }
  *
  *   Behavior:
- *     - If found_phone is present: asks "We found a number ending in
- *       ****1234 — use this number?" Yes/No.
- *         - Yes -> skips straight to delivery-method checkboxes
- *         - No  -> reveals the "+"-prefixed phone input, then checkboxes
- *     - If found_phone is empty: shows the phone input directly, then
- *       checkboxes
+ *     - Step 1: always asks the delivery-method question (SMS / Email
+ *       checkboxes) first, with a "Continue" button.
+ *     - Step 2 (only if SMS was selected):
+ *         - If found_phone is present: asks "We found a number ending in
+ *           ****1234 — use this number?" Yes/No.
+ *             - Yes -> uses that number, skips to submit
+ *             - No  -> reveals the "+"-prefixed phone input
+ *         - If found_phone is empty: shows the phone input directly
+ *     - If only Email was selected: no phone step at all — submits
+ *       immediately after Continue.
  *
  *   On final submit -> sets: phone (digits only, no leading "+" —
- *   GHL adds the "+" automatically on its end), and exactly ONE of:
+ *   empty string if not applicable — GHL adds the "+" automatically
+ *   on its end), and exactly ONE of:
  *     - send_sms    (SMS only)
  *     - send_email  (Email only)
  *     - send_both   (both SMS and Email)
@@ -365,24 +370,8 @@ export const PhoneConfirmExtension = {
 
         <form id="core4-form" novalidate>
 
-          <!-- Shown only when a phone number was found in GHL -->
-          <div class="core4-field-group ${hasFoundPhone ? '' : 'core4-hidden'}" id="core4-confirm-group">
-            <p class="core4-confirm-text">We found a number ending in •••• ${last4} on file. Use this number?</p>
-            <div class="core4-confirm-row">
-              <button type="button" class="core4-confirm-btn yes" id="core4-confirm-yes">Yes, use it</button>
-              <button type="button" class="core4-confirm-btn no" id="core4-confirm-no">No, enter a different number</button>
-            </div>
-          </div>
-
-          <!-- Shown when no phone was found, or user chose "No" above -->
-          <div class="core4-field-group ${hasFoundPhone ? 'core4-hidden' : ''}" id="core4-phone-group">
-            <label class="core4-label" for="core4-phone">Phone <span class="req">*</span></label>
-            <input class="core4-input" type="tel" id="core4-phone" placeholder="Phone" value="+" />
-            <div class="core4-error-msg" id="core4-phone-error">A valid phone number is required</div>
-          </div>
-
-          <!-- Delivery method: hidden until the phone step is resolved -->
-          <div class="core4-field-group core4-hidden" id="core4-delivery-group">
+          <!-- Step 1: delivery method, always shown first -->
+          <div class="core4-field-group" id="core4-delivery-group">
             <p class="core4-checkbox-question">How would you like your personalized immersive visualization delivered? <span class="req">*</span></p>
             <div class="core4-checkbox-row">
               <label class="core4-checkbox-option">
@@ -395,6 +384,25 @@ export const PhoneConfirmExtension = {
               </label>
             </div>
             <div class="core4-error-msg" id="core4-delivery-error">Please select at least one delivery method</div>
+            <button type="button" class="core4-submit-btn" id="core4-continue-btn" style="margin-top:14px;">
+              <span>Continue</span>
+            </button>
+          </div>
+
+          <!-- Step 2a: shown only if SMS is selected AND a phone number was found in GHL -->
+          <div class="core4-field-group core4-hidden" id="core4-confirm-group">
+            <p class="core4-confirm-text">We found a number ending in •••• ${last4} on file. Use this number?</p>
+            <div class="core4-confirm-row">
+              <button type="button" class="core4-confirm-btn yes" id="core4-confirm-yes">Yes, use it</button>
+              <button type="button" class="core4-confirm-btn no" id="core4-confirm-no">No, enter a different number</button>
+            </div>
+          </div>
+
+          <!-- Step 2b: shown only if SMS is selected AND no phone was found (or user chose "No" above) -->
+          <div class="core4-field-group core4-hidden" id="core4-phone-group">
+            <label class="core4-label" for="core4-phone">Phone <span class="req">*</span></label>
+            <input class="core4-input" type="tel" id="core4-phone" placeholder="Phone" value="+" />
+            <div class="core4-error-msg" id="core4-phone-error">A valid phone number is required</div>
           </div>
 
           <button type="submit" class="core4-submit-btn core4-hidden" id="core4-submit">
@@ -407,45 +415,73 @@ export const PhoneConfirmExtension = {
     element.appendChild(wrapper);
 
     const form = wrapper.querySelector('#core4-form');
+    const deliveryGroup = wrapper.querySelector('#core4-delivery-group');
+    const smsCheckbox = wrapper.querySelector('#core4-delivery-sms');
+    const emailCheckbox = wrapper.querySelector('#core4-delivery-email');
+    const continueBtn = wrapper.querySelector('#core4-continue-btn');
     const confirmGroup = wrapper.querySelector('#core4-confirm-group');
     const confirmYesBtn = wrapper.querySelector('#core4-confirm-yes');
     const confirmNoBtn = wrapper.querySelector('#core4-confirm-no');
     const phoneGroup = wrapper.querySelector('#core4-phone-group');
     const phoneInput = wrapper.querySelector('#core4-phone');
-    const deliveryGroup = wrapper.querySelector('#core4-delivery-group');
-    const smsCheckbox = wrapper.querySelector('#core4-delivery-sms');
-    const emailCheckbox = wrapper.querySelector('#core4-delivery-email');
     const submitBtn = wrapper.querySelector('#core4-submit');
 
-    // Tracks which number will actually be submitted: either the
-    // confirmed GHL number, or whatever the user types in the phone field.
+    // Tracks which number will actually be submitted (only relevant if SMS is chosen):
+    // either the confirmed GHL number, or whatever the user types in the phone field.
     let chosenPhoneDigits = hasFoundPhone ? digitsOnlyFound : null;
+    let smsRequired = false; // set once the user clicks Continue
 
     const isValidPhone = (value) => (value.match(/\d/g) || []).length >= 7;
 
-    const revealDeliveryStep = () => {
-      deliveryGroup.classList.remove('core4-hidden');
+    const revealSubmitStep = () => {
       submitBtn.classList.remove('core4-hidden');
     };
 
+    // Step 1 -> Step 2: decide whether the phone step is needed at all
+    continueBtn.addEventListener('click', () => {
+      const smsChecked = smsCheckbox.checked;
+      const emailChecked = emailCheckbox.checked;
+      const deliverySelected = smsChecked || emailChecked;
+      wrapper.querySelector('#core4-delivery-error').classList.toggle('show', !deliverySelected);
+      if (!deliverySelected) return;
+
+      smsRequired = smsChecked;
+
+      // Lock in the delivery choice
+      deliveryGroup.classList.add('core4-hidden');
+      smsCheckbox.disabled = true;
+      emailCheckbox.disabled = true;
+
+      if (!smsRequired) {
+        // Email only — no phone needed at all
+        chosenPhoneDigits = null;
+        revealSubmitStep();
+        return;
+      }
+
+      // SMS selected — show the appropriate phone step
+      if (hasFoundPhone) {
+        confirmGroup.classList.remove('core4-hidden');
+      } else {
+        phoneGroup.classList.remove('core4-hidden');
+        revealSubmitStep();
+      }
+    });
+
     if (hasFoundPhone) {
-      // Phone already confirmed by default until the user says otherwise
       confirmYesBtn.addEventListener('click', () => {
         chosenPhoneDigits = digitsOnlyFound;
         confirmGroup.classList.add('core4-hidden');
         phoneGroup.classList.add('core4-hidden');
-        revealDeliveryStep();
+        revealSubmitStep();
       });
 
       confirmNoBtn.addEventListener('click', () => {
         chosenPhoneDigits = null;
         confirmGroup.classList.add('core4-hidden');
         phoneGroup.classList.remove('core4-hidden');
-        revealDeliveryStep();
+        revealSubmitStep();
       });
-    } else {
-      // No number on file — go straight to manual entry + delivery step
-      revealDeliveryStep();
     }
 
     // Keep a leading "+" pinned in the phone field and strip non-digits
@@ -474,9 +510,9 @@ export const PhoneConfirmExtension = {
 
       let valid = true;
 
-      // If the phone field is visible (no confirmed number yet), validate it
+      // If the phone field is visible (SMS chosen, no confirmed number yet), validate it
       const phoneFieldVisible = !phoneGroup.classList.contains('core4-hidden');
-      if (phoneFieldVisible) {
+      if (smsRequired && phoneFieldVisible) {
         // The "+" shown in the field is just a visual hint — GHL adds
         // the "+" automatically on its end, so we strip it before sending.
         const enteredPhone = phoneInput.value.replace(/^\+/, '').trim();
@@ -489,36 +525,30 @@ export const PhoneConfirmExtension = {
         }
       }
 
-      const smsChecked = smsCheckbox.checked;
-      const emailChecked = emailCheckbox.checked;
-      const deliverySelected = smsChecked || emailChecked;
-      wrapper.querySelector('#core4-delivery-error').classList.toggle('show', !deliverySelected);
-      if (!deliverySelected) valid = false;
-
-      if (!chosenPhoneDigits) valid = false;
+      if (smsRequired && !chosenPhoneDigits) valid = false;
 
       if (!valid) return;
 
       const deliveryPayload = {};
-      if (smsChecked && emailChecked) {
+      if (smsCheckbox.checked && emailCheckbox.checked) {
         deliveryPayload.send_both = true;
-      } else if (smsChecked) {
+      } else if (smsCheckbox.checked) {
         deliveryPayload.send_sms = true;
-      } else if (emailChecked) {
+      } else if (emailCheckbox.checked) {
         deliveryPayload.send_email = true;
       }
 
       submitBtn.disabled = true;
       submitBtn.querySelector('span').textContent = 'Submitted';
 
-      [phoneInput, smsCheckbox, emailCheckbox, confirmYesBtn, confirmNoBtn].forEach((el) => {
+      [phoneInput, confirmYesBtn, confirmNoBtn].forEach((el) => {
         if (el) el.disabled = true;
       });
 
       window.voiceflow.chat.interact({
         type: 'complete',
         payload: {
-          phone: chosenPhoneDigits,
+          phone: chosenPhoneDigits || '',
           ...deliveryPayload,
         },
       });
