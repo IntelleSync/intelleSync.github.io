@@ -319,6 +319,33 @@ const showSubmittedState = (button) => {
   `;
 };
 
+// Shared helper: smoothly collapses and hides an entire extension card,
+// used once a screen has finished its job and no longer needs to stay
+// visible in the chat transcript. Waits briefly first so the user still
+// sees the "Submitted" checkmark before it disappears.
+const fadeOutAndHide = (wrapper, delayMs = 900) => {
+  setTimeout(() => {
+    // Lock in the current height so we can animate down from it
+    wrapper.style.maxHeight = wrapper.scrollHeight + 'px';
+    wrapper.style.overflow = 'hidden';
+
+    requestAnimationFrame(() => {
+      wrapper.style.transition =
+        'opacity 0.4s ease, max-height 0.5s ease, margin 0.5s ease, padding 0.5s ease';
+      wrapper.style.opacity = '0';
+      wrapper.style.maxHeight = '0px';
+      wrapper.style.marginTop = '0px';
+      wrapper.style.marginBottom = '0px';
+      wrapper.style.paddingTop = '0px';
+      wrapper.style.paddingBottom = '0px';
+    });
+
+    setTimeout(() => {
+      wrapper.style.display = 'none';
+    }, 550);
+  }, delayMs);
+};
+
 // ---------------------------------------------------------------------
 // SCREEN 1: First Name / Last Name / Email
 // ---------------------------------------------------------------------
@@ -417,6 +444,8 @@ export const SignInFormExtension = {
           email,
         },
       });
+
+      fadeOutAndHide(wrapper);
     });
   },
 };
@@ -433,7 +462,6 @@ export const PhoneConfirmExtension = {
 
   render: ({ trace, element }) => {
     const payload = trace.payload || {};
-    const heading = payload.heading || 'Almost done!';
     const submitLabel = payload.submitLabel || 'Get Started';
 
     // The full number found in GHL for this contact (E.164, e.g. "+15205040001"),
@@ -449,8 +477,6 @@ export const PhoneConfirmExtension = {
     wrapper.innerHTML = `
       ${CORE4_STYLES}
       <div>
-        <p class="core4-form-heading">${heading}</p>
-
         <form id="core4-form" novalidate>
 
           <!-- Step 1: delivery method, always shown first -->
