@@ -36,10 +36,10 @@
  *
  *   On final submit -> sets: phone (digits only, no leading "+" —
  *   empty string if not applicable — GHL adds the "+" automatically
- *   on its end), and exactly ONE of:
- *     - send_sms    (SMS only)
- *     - send_email  (Email only)
- *     - send_both   (both SMS and Email)
+ *   on its end), and two independent booleans:
+ *     - send_sms    (true if SMS was checked)
+ *     - send_email  (true if Email was checked)
+ *   Both can be true at once if the user checked both boxes.
  *
  * SETUP IN VOICEFLOW:
  * 1. Add two "Custom Action" steps to your diagram, one after the
@@ -58,8 +58,8 @@
  *      });
  *
  * 3. Make sure first_name, last_name, email, phone, found_phone,
- *    send_sms, send_email, and send_both all exist as variables in
- *    your Voiceflow project so your Code steps can assign to them.
+ *    send_sms, and send_email all exist as variables in your
+ *    Voiceflow project so your Code steps can assign to them.
  */
 
 // Shared styling used by both screens, kept as a single string so the
@@ -648,14 +648,12 @@ export const PhoneConfirmExtension = {
 
       if (!valid) return;
 
-      const deliveryPayload = {};
-      if (smsCheckbox.checked && emailCheckbox.checked) {
-        deliveryPayload.send_both = true;
-      } else if (smsCheckbox.checked) {
-        deliveryPayload.send_sms = true;
-      } else if (emailCheckbox.checked) {
-        deliveryPayload.send_email = true;
-      }
+      const smsChecked = smsCheckbox.checked;
+      const emailChecked = emailCheckbox.checked;
+      const deliveryPayload = {
+        send_sms: smsChecked,
+        send_email: emailChecked,
+      };
 
       submitBtn.disabled = true;
       showSubmittedState(submitBtn);
